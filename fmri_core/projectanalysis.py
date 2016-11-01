@@ -62,7 +62,7 @@ def rankTransform(mat):
 
 #######################################
 ### searchlight
-def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None):
+def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None, **searchlight_args):
     print "searchlights"
     ## initialize classifier
     fds = ds.copy(deep=False, sa=['targets', 'chunks'], fa=['voxel_indices'], a=['mapper'])
@@ -76,7 +76,7 @@ def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None):
         cv = CrossValidation(clf, NFoldPartitioner())
 
     from mvpa2.measures.searchlight import sphere_searchlight
-    cvsl = sphere_searchlight(cv, radius=r)
+    cvsl = sphere_searchlight(cv, radius=r, **searchlight_args)
     import time
     wsc_start_time = time.time()
     print "running SL at " + time.strftime("%H:%M:%S")
@@ -94,7 +94,7 @@ def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None):
 
 ###############################
 ### encoding
-def encoding(paths, ds, des, c, chunklen, nchunks, mus=None, covarmat=None, alphas=None, writeopts=None, bsargs=None):
+def encoding(paths, ds, des, c, chunklen, nchunks, mus=None, covarmat=None, alphas=None, writeopts=None, **bsargs):
     """
     rds: input dataset
     events: events (list)
