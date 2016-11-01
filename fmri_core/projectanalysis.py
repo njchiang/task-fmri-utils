@@ -2,10 +2,8 @@
 import sys, os
 if sys.platform == 'darwin':
     sys.path.append(os.path.join("/Users", "njchiang", "GitHub", "task-fmri-utils"))
-    sys.path.append(os.path.join("Users", "njchiang", "GitHub", "python-fmri-utils", "utils"))
 else:
     sys.path.append(os.path.join("D:\\", "GitHub", "task-fmri-utils"))
-    sys.path.append(os.path.join("D:\\", "GitHub", "python-fmri-utils", "utils"))
 
 
 ########################################
@@ -17,17 +15,13 @@ def beta_extract(ds, events, c='trial_type', design_kwargs=None):
                                   condition_attr=(c, 'chunks'),
                                   design_kwargs=design_kwargs,
                                   return_model=True)
-    fds = pu.replacetargets(evds, contrasts, thisContrast)
-    fds = fds[fds.targets != '0']
-    return fds
+    return evds
 
 
 def error2acc(d):
     d.samples *= -1
     d.samples += 1
     return d
-
-
 
 
 ######################################
@@ -68,7 +62,7 @@ def rankTransform(mat):
 
 #######################################
 ### searchlight
-def searchlight(paths, ds, clf=None, cv=None, writeopts=None):
+def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None):
     print "searchlights"
     ## initialize classifier
     fds = ds.copy(deep=False, sa=['targets', 'chunks'], fa=['voxel_indices'], a=['mapper'])
@@ -96,11 +90,11 @@ def searchlight(paths, ds, clf=None, cv=None, writeopts=None):
             to_filename(os.path.join(
                         paths[0], 'analysis', writeopts['outdir'],
                         writeopts['sub'] + '_' + writeopts['roi'] + '_' + writeopts['con'] + '_cvsl.nii.gz'))
-
+    return res
 
 ###############################
 ### encoding
-def encoding(paths, ds, events, c, chunklen, nchunks, mp=None, alphas=None, writeopts=None, bsargs=None):
+def encoding(paths, ds, des, c, chunklen, nchunks, mus=None, covarmat=None, alphas=None, writeopts=None, bsargs=None):
     """
     rds: input dataset
     events: events (list)
@@ -113,26 +107,14 @@ def encoding(paths, ds, events, c, chunklen, nchunks, mp=None, alphas=None, writ
     mus: regularization towards
     covarmat: covariance matrix for regularization
     """
-    if isinstance(c, basestring):
-        c = [c]
-    from nipy.modalities.fmri.design_matrix import make_dmtx
-    desX, rds = pu.make_designmat(ds, events, time_attr='time_coords', condition_attr=c,
-                                     design_kwargs={'hrf_model': 'canonical', 'drift_model': 'blank'},
-                                     regr_attrs=None)
-    if mp is not None:
-        desX['motion'] = make_dmtx(ds.sa['time_coords'].value, paradigm=None,
-                                   add_regs=mp, drift_model='blank')
-
-    des = pu.make_parammat(desX, hrf='canonical', zscore=True)
-
+    import numpy as np
     if covarmat is not None:
         if mus is None:
-            import numpy as np
             mus = np.zeros(covarmat.shape[1])
 
     if alphas is None:
         alphas = np.logspace(-1, 3, 50)
-    import BootstrapRidge as bsr
+    from pythonutils import bootstrapridge as bsr
     if bsargs is None:
         bsargs = {'part_attr': 'chunks', 'mode': 'test', 'single_alpha': True, 'normalpha': False,
                   'nboots': 50, 'corrmin': .2, 'singcutoff': 1e-10, 'joined': None, 'plot': False, 'use_corr': True}

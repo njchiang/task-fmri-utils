@@ -9,14 +9,38 @@ Wrapper for PyMVPA analysis. Implemented as a program to be able to run multiple
 For troubleshooting and parameter testing an ipynb exists too.
 """
 # initialize stuff
+PROJECTTITLE = ''
+
 import sys
 import os
-# from sklearn import linear_model as lm
-# from mvpa2.clfs.skl import SKLLearnerAdapter
+if sys.platform == 'darwin':
+    sys.path.append(os.path.join("/Users", "njchiang", "GitHub", "task-fmri-utils"))
+    sys.path.append(os.path.join("/Volumes", "JEFF", "UCLA", PROJECTTITLE, "code"))
+else:
+    sys.path.append(os.path.join("D:\\", "GitHub", "task-fmri-utils"))
+    sys.path.append(os.path.join("D:\\", "fmri", PROJECTTITLE, "code"))
+from fmri_core import projectanalysis as pa
+from project_code import projectutils as pu
+# need a trial_type attribute
+PATHS, SUBLIST, CONTRASTS = pu.initpaths()
 
 
-def runsub(sub, thisContrast, r, dstype='raw', roi='grayMatter', filter_params=[49,2], write=False):
+def runsub(sub, con, r, dstype='raw', roi='grayMatter', addmotion=None, sg_params=[49,2], writeopts=None):
+    if dstype == "LSS" or dstype == "LSA":
+        rds = pu.preprocess_betas(PATHS, sub, btype="LSS", c="trial_type", roi=roi, z=True)
+    else:
+        ds, events = pu.preprocess_data(PATHS, SUBLIST, sub,
+                                        filter_params=sg_params, roi=roi, z=True)
+        if addmotion:
+            design_kwargs = {'add_regs': addmotion, 'hrf_model': 'canonical'}
+        else:
+            design_kwargs = None
+        evds = pa.beta_extract(ds, events, design_kwargs=design_kwargs)
+        fds = pu.replacetargets(evds, CONTRASTS, con)
+        rds = fds[fds.targets != '0']
 
+    sorted_rds = pu.sortds(rds, c='trial_type')
+    res = pa.searchlight(PATHS, sorted_rds, r=r, clf=None, cv=None, writeopts=writeopts)
 
 
 def main(argv):
@@ -27,10 +51,9 @@ def main(argv):
     write = False
     roi = 'grayMatter'
     dstype = 'raw'
-    projecttitle = ''
     r = 4  # searchlight radius
     sg_params = [49, 2]
-
+    addmotion = True
     try:
         # figure out this line
         opts, args = getopt.getopt(argv, "dwh:m:c:b:r:f",
@@ -60,37 +83,29 @@ def main(argv):
             dstype = arg
         elif opt in ("-f", "--filter"):
             sg_params = arg.split(',')
-        elif opt in ("-p", "--project"):
-            projecttitle = arg
+        elif opt in ("-n", "--nomotion"):
+            addmotion = False
+
 
     if not con:
         print "not a valid contrast... exiting"
         sys.exit(1)
 
 
-    if sys.platform == 'darwin':
-        # plat = 'mac'
-        sys.path.append(os.path.join("/Users", "njchiang", "GitHub", "task-fmri-utils"))
-        sys.path.append(os.path.join("/Volumes", "JEFF", projecttitle))
-        sys.path.append(os.path.join("Users", "njchiang", "GitHub", "python-fmri-utils", "utils"))
-    else:
-        sys.path.append(os.path.join("D:\\", "GitHub", "task-fmri-utils"))
-        sys.path.append(os.path.join("D:\\", "fmri", projecttitle))
-        sys.path.append(os.path.join("D:\\", "GitHub", "python-fmri-utils", "utils"))
-    import projectutils as pu
-    import searchlightutils as sl
-    import SavGolFilter as sg
-    import projectconfig as pc
-    # need a trial_type attribute
-    paths, sublist, contrasts = pc.initpaths()
     print "Mask: " + str(roi)
     print "Full Model: " + str(con)
     print "Searchlight Radius: " + str(r)
     print "Write results: " + str(write)
-
-    for s in sublist.keys():
-        runsub(sub=s, thisContrast=con, r=r, dstype=dstype, write=write,
-               filter_params=sg_params, roi=roi)
+    if addmotion:
+        mc_params = pu.loadmotionparams(PATHS, SUBLIST)
+    for s in SUBLIST.keys():
+        if write:
+            writeopts = {'outdir': os.path.join('multivariate', 'searchlight'),
+                         'sub': s, 'roi': roi, 'con': con}
+        else:
+            writeopts = None
+        runsub(paths=PATHS, sub=s, con=con, r=r, addmotion=mc_params[s], dstype=dstype, writeopts=writeopts,
+               sg_params=sg_params, roi=roi)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

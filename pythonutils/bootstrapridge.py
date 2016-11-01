@@ -77,9 +77,9 @@ def bootstrap_ridge(ds, des, chunklen=None, nchunks=None, mu0=None, cov0=None,
         return
 
     if cov0 is not None:
-        import ridge_with_prior as ridge
+        from pythonutils import ridge_with_prior as ridge
     else:
-        import ridge as ridge
+        from pythonutils import ridge as ridge
 
     if chunklen == None or nchunks == None:
             print 'no chunk length or number of chunks specified... exiting'
