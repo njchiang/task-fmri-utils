@@ -2,10 +2,8 @@
 import sys, os
 if sys.platform == 'darwin':
     sys.path.append(os.path.join("/Users", "njchiang", "GitHub", "task-fmri-utils"))
-    sys.path.append(os.path.join("Users", "njchiang", "GitHub", "python-fmri-utils", "utils"))
 else:
     sys.path.append(os.path.join("D:\\", "GitHub", "task-fmri-utils"))
-    sys.path.append(os.path.join("D:\\", "GitHub", "python-fmri-utils", "utils"))
 
 
 ########################################
@@ -24,8 +22,6 @@ def error2acc(d):
     d.samples *= -1
     d.samples += 1
     return d
-
-
 
 
 ######################################
@@ -66,7 +62,7 @@ def rankTransform(mat):
 
 #######################################
 ### searchlight
-def searchlight(paths, ds, clf=None, cv=None, writeopts=None):
+def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None):
     print "searchlights"
     ## initialize classifier
     fds = ds.copy(deep=False, sa=['targets', 'chunks'], fa=['voxel_indices'], a=['mapper'])
@@ -94,11 +90,11 @@ def searchlight(paths, ds, clf=None, cv=None, writeopts=None):
             to_filename(os.path.join(
                         paths[0], 'analysis', writeopts['outdir'],
                         writeopts['sub'] + '_' + writeopts['roi'] + '_' + writeopts['con'] + '_cvsl.nii.gz'))
-
+    return res
 
 ###############################
 ### encoding
-def encoding(paths, ds, des, c, chunklen, nchunks, alphas=None, writeopts=None, bsargs=None):
+def encoding(paths, ds, des, c, chunklen, nchunks, mus=None, covarmat=None, alphas=None, writeopts=None, bsargs=None):
     """
     rds: input dataset
     events: events (list)
@@ -111,10 +107,9 @@ def encoding(paths, ds, des, c, chunklen, nchunks, alphas=None, writeopts=None, 
     mus: regularization towards
     covarmat: covariance matrix for regularization
     """
-
+    import numpy as np
     if covarmat is not None:
         if mus is None:
-            import numpy as np
             mus = np.zeros(covarmat.shape[1])
 
     if alphas is None:

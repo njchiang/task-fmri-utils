@@ -8,7 +8,6 @@ zs = lambda v: (v - v.mean(0)) / v.std(0)  # z-score function
 ######################################
 # initialize paths
 PROJECTNAME = ""
-TOOLBOXNAME = ""
 
 def initpaths():
     print "Initializing..."
@@ -90,7 +89,7 @@ def loadrundata(p, s, r, m=None, c='trial_type'):
     else:
         d = fmri_dataset(bfn, chunks=int(r.split('n')[1]))
     # This line-- should be different if we're doing GLM, etc.
-    efn = pjoin(p[0], 'data', s, 'preproc', s + '_' + r + '.tsv')
+    efn = pjoin(p[0], 'data', s, 'behav', 'labels', s + '_' + r + '.tsv')
     fe = bids.load_events(efn)
     if c is None:
         tmpe = events2dict(fe)
@@ -114,22 +113,6 @@ def loadsubdata(p, s, m=None, c=None):
     return fds
 
 
-def preprocess_data(paths, sublist, sub, filter_params=[49,2], roi="grayMatter", z=True):
-    import projectutils as pu
-    dsdict = pu.loadsubdata(paths, sublist[sub], m=roi)
-    tds = dsdict[sub]
-    beta_events = pu.loadevents(paths, sublist[sub])
-    # savitsky golay filtering
-    from pythonutils import savgolfilter as SGF
-    SGF.sg_filter(tds, filter_params[0], filter_params[1])
-    # zscore entire set. if done chunk-wise, there is no double-dipping (since we leave a chunk out at a time).
-    if z:
-        from mvpa2.mappers.zscore import zscore
-        zscore(tds, chunks_attr='chunks')
-    rds, events = pu.amendtimings(tds, beta_events[sub])
-    return rds, events
-
-
 def loadevents(p, s):
     # if isinstance(c, basestring):
     #     # must be a list/tuple/array for the logic below
@@ -138,8 +121,23 @@ def loadevents(p, s):
     from mvpa2.datasets.sources import bids
     from os.path import join as pjoin
     for sub in s.keys():
-        fds[sub] = [bids.load_events(pjoin(p[0], 'data', sub, 'func', sub + '_' + r + '.tsv')) for r in s[sub]]
+        fds[sub] = [bids.load_events(pjoin(p[0], 'data', sub, 'behav', 'labels', sub + '_' + r + '.tsv')) for r in s[sub]]
     return fds
+
+
+def preprocess_data(paths, sublist, sub, filter_params=[49,2], roi="grayMatter", z=True):
+    dsdict = loadsubdata(paths, sublist, m=roi)
+    tds = dsdict[sub]
+    beta_events = loadevents(paths, sublist)
+    # savitsky golay filtering
+    from pythonutils import savgolfilter as SGF
+    SGF.sg_filter(tds, filter_params[0], filter_params[1])
+    # zscore entire set. if done chunk-wise, there is no double-dipping (since we leave a chunk out at a time).
+    if z:
+        from mvpa2.mappers.zscore import zscore
+        zscore(tds, chunks_attr='chunks')
+    rds, events = amendtimings(tds, beta_events[sub])
+    return rds, events
 
 
 def loadmotionparams(p, s):
@@ -147,7 +145,7 @@ def loadmotionparams(p, s):
     import os
     res = {}
     for sub in s.keys():
-        mcs = [np.loadtxt(os.path.join(p[0], 'data', sub, 'preproc',
+        mcs = [np.loadtxt(os.path.join(p[0], 'data', sub, 'preproc', 'intermediate',
                                        sub + '_' + r + '_mc', sub + '_' + r + '_mc.par'))
                for r in s[sub]]
         res[sub] = np.vstack(mcs)
@@ -177,7 +175,8 @@ def adjustevents(e, c='trial_type'):
 def replacetargets(d, ckey, c='trial_type'):
     import numpy as np
     if c in ckey:
-        d.sa[c] = [ckey[c][np.where(st == ckey['trial_type'])[0][0]] for st in d.sa['trial_type']]
+        d.sa[c] = [ckey[c][ckey['trial_type'].index(st)] for st in d.sa['trial_type']]
+        # d.sa[c] = [ckey[c][np.where(st == ckey['trial_type'])[0][0]] for st in d.sa['trial_type']]
         d.sa['targets'] = d.sa[c]
     else:
         print "not a valid contrasts, did not do anything."
@@ -408,7 +407,7 @@ def preprocess_encoding(ds, events, c, mp=None, design_kwargs=None):
         c = [c]
     from nipy.modalities.fmri.design_matrix import make_dmtx
     if design_kwargs is None:
-        design_kwargs = {'hrf_model': 'canonical', 'drift_model': 'blank'},
+        design_kwargs = {'hrf_model': 'canonical', 'drift_model': 'blank'}
     des_dict, rds = make_designmat(ds, events, time_attr='time_coords', condition_attr=c,
                                design_kwargs=design_kwargs, regr_attrs=None)
     if mp is not None:
