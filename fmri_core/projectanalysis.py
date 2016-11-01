@@ -17,9 +17,7 @@ def beta_extract(ds, events, c='trial_type', design_kwargs=None):
                                   condition_attr=(c, 'chunks'),
                                   design_kwargs=design_kwargs,
                                   return_model=True)
-    fds = pu.replacetargets(evds, contrasts, thisContrast)
-    fds = fds[fds.targets != '0']
-    return fds
+    return evds
 
 
 def error2acc(d):
@@ -100,7 +98,7 @@ def searchlight(paths, ds, clf=None, cv=None, writeopts=None):
 
 ###############################
 ### encoding
-def encoding(paths, ds, events, c, chunklen, nchunks, mp=None, alphas=None, writeopts=None, bsargs=None):
+def encoding(paths, ds, des, c, chunklen, nchunks, alphas=None, writeopts=None, bsargs=None):
     """
     rds: input dataset
     events: events (list)
@@ -113,17 +111,6 @@ def encoding(paths, ds, events, c, chunklen, nchunks, mp=None, alphas=None, writ
     mus: regularization towards
     covarmat: covariance matrix for regularization
     """
-    if isinstance(c, basestring):
-        c = [c]
-    from nipy.modalities.fmri.design_matrix import make_dmtx
-    desX, rds = pu.make_designmat(ds, events, time_attr='time_coords', condition_attr=c,
-                                     design_kwargs={'hrf_model': 'canonical', 'drift_model': 'blank'},
-                                     regr_attrs=None)
-    if mp is not None:
-        desX['motion'] = make_dmtx(ds.sa['time_coords'].value, paradigm=None,
-                                   add_regs=mp, drift_model='blank')
-
-    des = pu.make_parammat(desX, hrf='canonical', zscore=True)
 
     if covarmat is not None:
         if mus is None:
@@ -132,7 +119,7 @@ def encoding(paths, ds, events, c, chunklen, nchunks, mp=None, alphas=None, writ
 
     if alphas is None:
         alphas = np.logspace(-1, 3, 50)
-    import BootstrapRidge as bsr
+    from pythonutils import bootstrapridge as bsr
     if bsargs is None:
         bsargs = {'part_attr': 'chunks', 'mode': 'test', 'single_alpha': True, 'normalpha': False,
                   'nboots': 50, 'corrmin': .2, 'singcutoff': 1e-10, 'joined': None, 'plot': False, 'use_corr': True}

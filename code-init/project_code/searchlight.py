@@ -11,8 +11,6 @@ For troubleshooting and parameter testing an ipynb exists too.
 # initialize stuff
 import sys
 import os
-# from sklearn import linear_model as lm
-# from mvpa2.clfs.skl import SKLLearnerAdapter
 
 
 def runsub(sub, thisContrast, r, dstype='raw', roi='grayMatter', filter_params=[49,2], write=False):
@@ -72,17 +70,14 @@ def main(argv):
         # plat = 'mac'
         sys.path.append(os.path.join("/Users", "njchiang", "GitHub", "task-fmri-utils"))
         sys.path.append(os.path.join("/Volumes", "JEFF", projecttitle))
-        sys.path.append(os.path.join("Users", "njchiang", "GitHub", "python-fmri-utils", "utils"))
     else:
         sys.path.append(os.path.join("D:\\", "GitHub", "task-fmri-utils"))
         sys.path.append(os.path.join("D:\\", "fmri", projecttitle))
-        sys.path.append(os.path.join("D:\\", "GitHub", "python-fmri-utils", "utils"))
-    import projectutils as pu
-    import searchlightutils as sl
-    import SavGolFilter as sg
-    import projectconfig as pc
+    from code import projectutils as pu
+    from analysis import projectanalysis as pa
+
     # need a trial_type attribute
-    paths, sublist, contrasts = pc.initpaths()
+    paths, sublist, contrasts = pu.initpaths()
     print "Mask: " + str(roi)
     print "Full Model: " + str(con)
     print "Searchlight Radius: " + str(r)

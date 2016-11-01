@@ -1,10 +1,8 @@
 import sys, os
 if sys.platform == 'darwin':
     sys.path.append(os.path.join("/Users", "njchiang", "GitHub", "task-fmri-utils"))
-    sys.path.append(os.path.join("Users", "njchiang", "GitHub", "python-fmri-utils", "utils"))
 else:
     sys.path.append(os.path.join("D:\\", "GitHub", "task-fmri-utils"))
-    sys.path.append(os.path.join("D:\\", "GitHub", "python-fmri-utils", "utils"))
 
 zs = lambda v: (v - v.mean(0)) / v.std(0)  # z-score function
 ######################################
@@ -26,9 +24,17 @@ def initpaths():
         dataroot = os.path.join('/Volumes', 'JEFF', 'UCLA')
 
     p.append(os.path.join(dataroot, PROJECTNAME))
-    p.append(os.path.join(root, 'GitHub', TOOLBOXNAME))
+    p.append(os.path.join(dataroot, PROJECTNAME, 'code'))
     p.append(os.path.join(root, 'CloudStation', 'Grad', 'Research', PROJECTNAME))
-    c = pd.read_csv(os.path.join(p[1], 'labels', 'conds_key.txt'), sep='\t').to_dict('list')
+    c=None
+    try:
+        c = pd.read_csv(os.path.join(p[1], 'labels', 'conds_key.txt'), sep='\t').to_dict('list')
+    except IOError as e:
+        print "I/O error:".format(e.errno, e.strerror)
+    except ValueError:
+        print "Could not convert data"
+    except:
+        print "Unexpected error, could not load contrasts"
     s = {}
     # dict of subjects and runs
     return p, s, c
@@ -58,10 +64,11 @@ def loadsubbetas(p, s, method="LSS", btype='tstat', m=None):
 
 
 def preprocess_betas(paths, sub, btype="LSS", c="trial_type", roi="grayMatter", z=True):
-    import projectutils as pu
+    from project_code import projectutils as pu
     rds = pu.loadsubbetas(paths, sub, btype=btype, m=roi)
     rds.sa['targets'] = rds.sa[c]
     if z:
+        from mvpa2.mappers.zscore import zscore
         zscore(rds, chunks_attr='chunks')
     return rds
 
@@ -113,7 +120,7 @@ def preprocess_data(paths, sublist, sub, filter_params=[49,2], roi="grayMatter",
     tds = dsdict[sub]
     beta_events = pu.loadevents(paths, sublist[sub])
     # savitsky golay filtering
-    import SavGolFilter as SGF
+    from pythonutils import savgolfilter as SGF
     SGF.sg_filter(tds, filter_params[0], filter_params[1])
     # zscore entire set. if done chunk-wise, there is no double-dipping (since we leave a chunk out at a time).
     if z:
@@ -324,7 +331,7 @@ def make_designmat(ds, eorig, time_attr='time_coords', condition_attr='targets',
         else:
             design_kwargs['add_reg_names'] = names
 
-    X = {}
+    x = {}
     for ci, con in enumerate(condition_attr):
         # create paradigm
         if 'duration' in evvars:
@@ -342,9 +349,9 @@ def make_designmat(ds, eorig, time_attr='time_coords', condition_attr='targets',
                 con_id=evvars[glm_condition_attrs[ci]],
                 onset=evvars['onset'],
                 **add_paradigm_kwargs)
-        X[con] = make_dmtx(ds.sa[time_attr].value, paradigm=paradigm, **design_kwargs)
-        for i, reg in enumerate(X[con].names):
-            ds.sa[reg] = X[con].matrix[:, i]
+        x[con] = make_dmtx(ds.sa[time_attr].value, paradigm=paradigm, **design_kwargs)
+        for i, reg in enumerate(x[con].names):
+            ds.sa[reg] = x[con].matrix[:, i]
         if con in ds.sa.keys():
             ds.sa.pop(con)
 
@@ -356,7 +363,7 @@ def make_designmat(ds, eorig, time_attr='time_coords', condition_attr='targets',
     # if 'chunks' in ds.sa.keys():
     #     for i in ds.sa['chunks'].unique:
     #         ds.sa['glm_label_chunks' + str(i)] = np.array(ds.sa['chunks'].value == i, dtype=np.int)
-    return X, ds
+    return x, ds
 
 
 def make_parammat(dm, hrf='canonical', zscore=False):
@@ -395,3 +402,18 @@ def make_parammat(dm, hrf='canonical', zscore=False):
     out.names = names
     return out
 
+
+def preprocess_encoding(ds, events, c, mp=None, design_kwargs=None):
+    if isinstance(c, basestring):
+        c = [c]
+    from nipy.modalities.fmri.design_matrix import make_dmtx
+    if design_kwargs is None:
+        design_kwargs = {'hrf_model': 'canonical', 'drift_model': 'blank'},
+    des_dict, rds = make_designmat(ds, events, time_attr='time_coords', condition_attr=c,
+                               design_kwargs=design_kwargs, regr_attrs=None)
+    if mp is not None:
+        des_dict['motion'] = make_dmtx(ds.sa['time_coords'].value, paradigm=None,
+                                   add_regs=mp, drift_model='blank')
+
+    des = make_parammat(des_dict, hrf='canonical', zscore=True)
+    return rds, des
