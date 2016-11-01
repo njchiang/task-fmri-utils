@@ -11,8 +11,8 @@
 #   DESCRIPTION: 
 #   this script is run in each analysis, sets up file structure and populates it with subjects
 #   arguments:
-#   basically is a wrapper for make_file_structure.sh but also renames the data
-#   and copies data in. should be able to pull new subjects without the --initialize option
+#   basically is a wrapper for make_file_structure.sh and copies data in. should
+#   be able to pull new subjects without the --initialize option
 #   
 #	OPTIONS: ---
 #       --initialize | switch for first time initialization
@@ -30,7 +30,7 @@
 
 set -o nounset                              # Treat unset variables as an error
 
-MODE="local" # or FUNC
+
 INITIALIZE=false
 OPATH=${PWD}
 SUB=''
@@ -82,9 +82,9 @@ echo "Logging to: ${logfile}"
 
 if [[ ${INITIALIZE} == "true" ]]
 then
-	cmd="sh ${GITDIR}/data-init/make_file_structure.sh --initialize ${SUB} ${ANALYSIS} -p ${OPATH}"
+	cmd="sh ${GITDIR}/bash/make_file_structure.sh --initialize ${SUB} ${ANALYSIS} -p ${OPATH}"
 else
-	cmd="sh ${GITDIR}/data-init/make_file_structure.sh ${SUB} --noanalysis -p ${OPATH}"
+	cmd="sh ${GITDIR}/bash/make_file_structure.sh ${SUB} --noanalysis -p ${OPATH}"
 fi
 echo ${cmd} >> ${logfile}
 ${cmd}

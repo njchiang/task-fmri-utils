@@ -30,7 +30,7 @@ from mvpa2.measures import rsa
 dsm = rsa.PDist(square=True)
 
 
-def plot_mtx(mtx, labels, title=None, vmin=0, vmax=1, ):
+def plot_mtx(mtx, labels, title=None, vmin=0, vmax=1):
     import matplotlib.pyplot as plt
     f, ax = plt.subplots()
     im = ax.imshow(mtx, interpolation='nearest', vmin=vmin, vmax=vmax)
@@ -44,7 +44,7 @@ def plot_mtx(mtx, labels, title=None, vmin=0, vmax=1, ):
     return f, ax
 
 
-def rankTransform(mat):
+def ranktransform(mat):
     # scales from 0-1
     import scipy.spatial.distance as ds
     import numpy as np
@@ -92,9 +92,11 @@ def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None, **searchlight_a
                         writeopts['sub'] + '_' + writeopts['roi'] + '_' + writeopts['con'] + '_cvsl.nii.gz'))
     return res
 
+
 ###############################
 ### encoding
-def encoding(paths, ds, des, c, chunklen, nchunks, mus=None, covarmat=None, alphas=None, writeopts=None, **bsargs):
+def encoding(paths, ds, des, c, chunklen, nchunks,
+             mus=None, covarmat=None, alphas=None, writeopts=None, **bsargs):
     """
     rds: input dataset
     events: events (list)

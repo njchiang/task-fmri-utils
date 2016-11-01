@@ -104,15 +104,22 @@ fi
 for s in ${SUB}
 do
 	echo "Setting up ${s}"
+	# result of setup_subject_nifti_2, contains raw and mcf files
 	mkdir -p ${OPATH}/data/${s}/raw
-	mkdir -p ${OPATH}/data/${s}/masks
-	mkdir -p ${OPATH}/data/${s}/reg
+	# raw output of behavioral
 	mkdir -p ${OPATH}/data/${s}/behav/from_scanner
+	# behavioral to regressors for FSL	
 	mkdir -p ${OPATH}/data/${s}/behav/regressors
+	# behavioral to labels for PyMVPA
 	mkdir -p ${OPATH}/data/${s}/behav/labels
-	mkdir -p ${OPATH}/data/${s}/preproc/intermediate
-	mkdir -p ${OPATH}/data/${s}/logs
-	mkdir -p ${OPATH}/data/${s}/des
+	# registration files (templates and xfm matrices)
+	mkdir -p ${OPATH}/data/${s}/analysis/reg
+	# mask files (registered to either run or BOLD template)
+	mkdir -p ${OPATH}/data/${s}/analysis/masks
+	# log files from setup_subject
+	mkdir -p ${OPATH}/data/${s}/notes
+	# raw dicom files
+	mkdir -p ${OPATH}/data/${s}/dicom
 done
 
 if [[ "$ADDCODE" == "true" ]]

@@ -115,7 +115,7 @@ inputs:
 	shift # past argument or value
 done
 
-logfile=${PROJECTDIR}/data/${SUB}/logs/preprocess_BOLD_${FILENAME}.log
+logfile=${PROJECTDIR}/data/${SUB}/notes/preprocess_BOLD_${FILENAME}.log
 echo "Root directory: ${PROJECTDIR}"
 echo "Subject: ${SUB}"
 echo "Filename: ${FILENAME}"
@@ -151,17 +151,17 @@ else
 		########### Remove TRs ###############
 		if [[ "$REMOVEVOLS" -gt 0 ]] 
 		then
+			# fix FILENAME here
 			cmd="fslroi ${PROJECTDIR}/data/${SUB}/raw/${FILENAME} \
-				${PROJECTDIR}/data/${SUB}/preproc/intermediate/${FILENAME} \
+				${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
 				${REMOVEVOLS} -1"
 		else
 			cmd="cp ${PROJECTDIR}/data/${SUB}/raw/${FILENAME}.nii.gz \
-				${PROJECTDIR}/data/${SUB}/preproc/intermediate/${FILENAME}.nii.gz"
+				${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz"
 		fi
 
 		echo $cmd >> $logfile
 		$cmd
-		finalfile=${PROJECTDIR}/data/${SUB}/preproc/intermediate/${FILENAME}
 
 		########### FLIRT ###############
 
@@ -170,56 +170,65 @@ else
 		then
 			echo "Running FLIRT" >> $logfile
 			echo "Running FLIRT"
-			cmd="mcflirt -in ${finalfile} \
-				-out ${PROJECTDIR}/data/${SUB}/preproc/intermediate/${FILENAME}_mcf \
+			cmd="mcflirt -in ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
+				-out ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
 				${MCFLIRT_ARGS}"
 			echo ${cmd} >> $logfile
 			${cmd}
-		finalfile=${PROJECTDIR}/data/${SUB}/preproc/intermediate/${FILENAME}_mcf
 		fi
 
 		if [[ "${RUN_SLICETIMING}" == "true" ]]
 		then
 			echo "Slicetiming" >> $logfile
 			echo "Slicetiming"
-			cmd="slicetimer -i ${finalfile} \
-				-o ${PROJECTDIR}/data/${SUB}/preproc/intermediate/${FILENAME}_mcf_st \
+			cmd="slicetimer -i ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
+				-o ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
 				$SLICETIMING_ARGS"
 			echo ${cmd} >> $logfile
 			$cmd
-			finalfile=${PROJECTDIR}/data/${SUB}/preproc/intermediate/${FILENAME}_mcf_st 
 		fi
 
 		if [[ "${MAKE_TEMPLATE}" == "true" ]]
 		then
 			echo "Making BOLD template"
 			echo "Making BOLD template" >> $logfile
-			cmd="fslmaths $finalfile -Tmean \
-				${PROJECTDIR}/data/${SUB}/reg/${FILENAME}_template_BOLD"
+			cmd="fslmaths ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz -Tmean \
+				${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_template_BOLD"
 			echo ${cmd} >> $logfile
-			$cmd	
+			echo "Registering to standard"
+			echo "Registering BOLD template to standard" >> $logfile
+			cmd="flirt -in ${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_template_BOLD \
+				-ref ${FSLDIR}/data/standard/MNI152_T1_2mm_brain.nii.gz -omat \
+				${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_template_to_standard.mat" 
+			echo ${cmd} >> ${logfile}
+			$cmd
+			echo "Inverting standard transformation" >> ${logfile}
+			cmd="convert_xfm -omat ${FILENAME}_standard_to_template.mat \
+				-inverse ${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_template_to_standard.mat"
+			echo ${cmd} >> ${logfile}
+			$cmd
 		fi
 
 		if [[ "${REGISTRATION_TARGET}" != "None" ]]
 		then
 			echo "Registration"
 			# should check for file first...
-			cmd="flirt -in ${PROJECTDIR}/data/${SUB}/reg/${FILENAME}_template_BOLD \
-				-ref ${REGISTRATION_TARGET} \
-				-omat ${PROJECTDIR}/data/${SUB}/reg/${FILENAME}_to_template.mat"
+			cmd="flirt -in ${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_template_BOLD \
+				-ref ${REGISTRATION_TARGET} -omat \
+				${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_to_template.mat"
 			echo ${cmd} >> $logfile
 			$cmd
-			cmd="flirt -in $finalfile -out ${finalfile}_reg \
+			cmd="flirt -in ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
+				-out flirt -in ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
 				-ref ${REGISTRATION_TARGET} -applyxfm -init \
-				-omat ${PROJECTDIR}/data/${SUB}/reg/${FILENAME}_to_template.mat"
+				${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_to_template.mat"
 			echo ${cmd} >> $logfile
 			$cmd
-			finalfile=${finalfile}_reg
 		fi
-		echo "Symlinking final file" >> $logfile
-		echo "Symlinking final file"
-		rm ${PROJECTDIR}/data/${SUB}/preproc/${FILENAME}
-		cmd="ln -s ${finalfile} ${PROJECTDIR}/data/${SUB}/preproc/${FILENAME}"
+		echo "Renaming final file" >> $logfile
+		echo "Renaming final file"
+		cmd="mv flirt -in ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
+			flirt -in ${PROJECTDIR}/data/${SUB}/analysis/${FILENAME}"
 		echo ${cmd} >> $logfile
 		$cmd
 
