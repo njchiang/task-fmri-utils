@@ -62,16 +62,19 @@ do
 		do
 			orig_name=`echo ${line} | cut -d ',' -f1`
 			target_name=`echo ${line} | cut -d ',' -f2`
-			for i in ${OPATH}/data/${sub}/raw/${orig_name}*
+			for i in ${OPATH}/data/${sub}/raw/${orig_name}/${orig_name}*
 			do
-				targetfile=echo ${i} | sed "s/${orig_name}/${target_name}/g"
-				if [ LINK == "true" ]
+				f=`echo ${i} | rev | cut -d '/' -f1| rev`
+				fpath=`echo ${i} | rev | cut -d '/' -f3-| rev`
+				t=`echo ${f} | sed "s/${orig_name}/${target_name}/"` 
+				targetfile=${fpath}/${t}
+				if [ $LINK == "true" ]
 				then
 					ln -s ${i} ${targetfile}
 				else
 					cp ${i} ${targetfile}
 				fi
 			done
-		done < ${OPATH}/data/${sub}/behav/${FILENAME}.txt
+		done < ${OPATH}/data/${sub}/behav/${FILENAME}
 	fi
 done

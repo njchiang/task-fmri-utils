@@ -36,15 +36,13 @@ set -o nounset                              # Treat unset variables as an error
 
 PROJECTDIR=${PWD}
 REMOVEVOLS=0
+RUN_BET=false
 RUN_FLIRT=false
 RUN_SLICETIMING=false
-RUN_BET=false
-RUN_OPTIBET=false
 MCFLIRT_ARGS="-plots -report -stages 4 -sinc_final"
 SLICETIMING_ARGS=''
-MAKE_TEMPLATE=false
-REGISTRATION_TARGET="None"
 FILENAME="None"
+OUTPUT="None"
 SUB="None"
 while [[ $# -ge 1 ]]
 do
@@ -70,6 +68,9 @@ do
 		--mcflirt)
 		RUN_FLIRT=true
 		;;
+		--bet)
+		RUN_BET=true
+		;;
 		--mcflirt_args)
 		MCFLIRT_ARGS=$2
 		shift
@@ -79,21 +80,9 @@ do
 		SLICETIMING_ARGS=$2
 		shift
 		;;
-		--bet)
-		RUN_BET=true
-		;;
-		--optibet)
-		RUN_OPTIBET=true
-		;;
-		--template)
-		MAKE_TEMPLATE=true
-		;;
-		--register)
-		REGISTRATION_TARGET=${2}
-		;;
 		*)
         echo " \
-preprocess_data.sh
+preprocess_BOLD_data.sh
 preprocesses raw data with a bunch of switches to toggle analyses
 assumes structure made with make_file_structure.sh
 outputs processing into data/[SUB/preproc/intermediate 
@@ -105,29 +94,28 @@ inputs:
 	-r removevols
 	--mcflirt
 	--slicetiming
-	--optibet
-	--bet
-	--template
-	--register [LOCAL_PATH_TO_TARGET]
 "
 		;;
 	esac
 	shift # past argument or value
 done
+FILENAME=`echo ${FILENAME} | cut -d '.' -f1` # assumes no extra .'s
+if [ $OUTPUT == "None" ]
+then
+	OUTPUT=${FILENAME}_preproc
+fi
 
 logfile=${PROJECTDIR}/data/${SUB}/notes/preprocess_BOLD_${FILENAME}.log
 echo "Root directory: ${PROJECTDIR}"
 echo "Subject: ${SUB}"
 echo "Filename: ${FILENAME}"
+echo "Output: ${OUTPUT}"
 echo "Remove vols: ${REMOVEVOLS}"
 echo "Motion correction: ${RUN_FLIRT}"
 echo "Motion correction args: ${MCFLIRT_ARGS}"
 echo "Slicetiming correction: ${RUN_SLICETIMING}"
 echo "Slicetiming args: ${SLICETIMING_ARGS}"
-echo "Make template: ${MAKE_TEMPLATE}"
-echo "Bet: ${RUN_BET}"
-echo "Optibet: ${RUN_OPTIBET}"
-echo "Register to: ${REGISTRATION_TARGET}"
+echo "BET: ${RUN_BET}"
 echo "logging to: ${logfile}"
 
 if [[ "$FILENAME" == "None" ]]
@@ -139,8 +127,6 @@ else
 	then
 		echo "No subject specified"
 	else
-
-		FILENAME=`echo ${FILENAME} | cut -d '.' -f1` # assumes no extra .'s
 		echo "Directory: $PROJECTDIR" >> $logfile
 		echo "Subject: ${SUB}" >> $logfile
 		echo "Filename: ${FILENAME}" >> $logfile
@@ -153,85 +139,62 @@ else
 		then
 			# fix FILENAME here
 			cmd="fslroi ${PROJECTDIR}/data/${SUB}/raw/${FILENAME} \
-				${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
+				${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp.nii.gz \
 				${REMOVEVOLS} -1"
 		else
 			cmd="cp ${PROJECTDIR}/data/${SUB}/raw/${FILENAME}.nii.gz \
-				${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz"
+				${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp.nii.gz"
 		fi
 
 		echo $cmd >> $logfile
 		$cmd
 
 		########### FLIRT ###############
-
-
 		if [[ "$RUN_FLIRT" == "true" ]]
 		then
 			echo "Running FLIRT" >> $logfile
 			echo "Running FLIRT"
-			cmd="mcflirt -in ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
-				-out ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
+			cmd="mcflirt -in ${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp \
+				-out ${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp \
 				${MCFLIRT_ARGS}"
 			echo ${cmd} >> $logfile
 			${cmd}
+			mv ${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp.par \
+			${PROJECTDIR}/data/${SUB}/analysis/preproc/${OUTPUT}.par
+
 		fi
 
+		########### SLICETIMING ##############
 		if [[ "${RUN_SLICETIMING}" == "true" ]]
 		then
 			echo "Slicetiming" >> $logfile
 			echo "Slicetiming"
-			cmd="slicetimer -i ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
-				-o ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
+			cmd="slicetimer -i ${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp.nii.gz \
+				-o ${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp.nii.gz \
 				$SLICETIMING_ARGS"
 			echo ${cmd} >> $logfile
 			$cmd
 		fi
 
-		if [[ "${MAKE_TEMPLATE}" == "true" ]]
+		############ RUN BET ##############
+		if [[ ${RUN_BET} == "true" ]]
 		then
-			echo "Making BOLD template"
-			echo "Making BOLD template" >> $logfile
-			cmd="fslmaths ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz -Tmean \
-				${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_template_BOLD"
+			echo "Brain extraction" >> $logfile
+			echo "Brain extraction"
+			cmd="bet ${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp \
+				${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp -m -F"
 			echo ${cmd} >> $logfile
-			echo "Registering to standard"
-			echo "Registering BOLD template to standard" >> $logfile
-			cmd="flirt -in ${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_template_BOLD \
-				-ref ${FSLDIR}/data/standard/MNI152_T1_2mm_brain.nii.gz -omat \
-				${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_template_to_standard.mat" 
-			echo ${cmd} >> ${logfile}
 			$cmd
-			echo "Inverting standard transformation" >> ${logfile}
-			cmd="convert_xfm -omat ${FILENAME}_standard_to_template.mat \
-				-inverse ${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_template_to_standard.mat"
-			echo ${cmd} >> ${logfile}
-			$cmd
+			mv ${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp_mask.nii.gz \
+				${PROJECTDIR}/data/${SUB}/analysis/preproc/${OUTPUT}_mask.nii.gz
 		fi
-
-		if [[ "${REGISTRATION_TARGET}" != "None" ]]
-		then
-			echo "Registration"
-			# should check for file first...
-			cmd="flirt -in ${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_template_BOLD \
-				-ref ${REGISTRATION_TARGET} -omat \
-				${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_to_template.mat"
-			echo ${cmd} >> $logfile
-			$cmd
-			cmd="flirt -in ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
-				-out flirt -in ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
-				-ref ${REGISTRATION_TARGET} -applyxfm -init \
-				${PROJECTDIR}/data/${SUB}/analysis/reg/${FILENAME}_to_template.mat"
-			echo ${cmd} >> $logfile
-			$cmd
-		fi
+		############ FINAL FILE ###############
 		echo "Renaming final file" >> $logfile
 		echo "Renaming final file"
-		cmd="mv flirt -in ${PROJECTDIR}/data/${SUB}/analysis/tmp.nii.gz \
-			flirt -in ${PROJECTDIR}/data/${SUB}/analysis/${FILENAME}"
+		cmd="mv ${PROJECTDIR}/data/${SUB}/analysis/preproc/tmp.nii.gz \
+			${PROJECTDIR}/data/${SUB}/analysis/preproc/${OUTPUT}.nii.gz"
 		echo ${cmd} >> $logfile
 		$cmd
-
 	fi
 fi
 

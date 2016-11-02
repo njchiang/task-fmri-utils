@@ -114,6 +114,8 @@ do
 	mkdir -p ${OPATH}/data/${s}/behav/labels
 	# registration files (templates and xfm matrices)
 	mkdir -p ${OPATH}/data/${s}/analysis/reg
+	# preprocessed files (prior to registering)
+	mkdir -p ${OPATH}/data/${s}/analysis/preproc
 	# mask files (registered to either run or BOLD template)
 	mkdir -p ${OPATH}/data/${s}/analysis/masks
 	# log files from setup_subject
