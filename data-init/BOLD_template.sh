@@ -101,7 +101,7 @@ then
 	TEMPLATE_NAME=${FILENAME}
 fi
 
-logfile=${PROJECTDIR}/data/${SUB}/notes/BOLD_template.log
+logfile=${PROJECTDIR}/data/${SUB}/notes/BOLD_template_${TEMPLATE_NAME}.log
 echo "Root directory: ${PROJECTDIR}"
 echo "Subject: ${SUB}"
 echo "Filename: ${FILENAME}"
