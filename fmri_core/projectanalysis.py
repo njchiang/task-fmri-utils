@@ -88,7 +88,7 @@ def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None, **searchlight_a
         from mvpa2.base import dataset
         map2nifti(fds, dataset.vstack(res)).\
             to_filename(os.path.join(
-                        paths[0], 'analysis', writeopts['outdir'],
+                        paths['root'], 'analysis', writeopts['outdir'],
                         writeopts['sub'] + '_' + writeopts['roi'] + '_' + writeopts['con'] + '_cvsl.nii.gz'))
     return res
 
@@ -127,18 +127,18 @@ def encoding(paths, ds, des, c, chunklen, nchunks,
         from mvpa2.base import dataset
         map2nifti(ds, dataset.vstack(wts)).\
             to_filename(os.path.join(
-            paths[0], 'analysis', writeopts['outdir'],
+            paths['root'], 'analysis', writeopts['outdir'],
             writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_wts.nii.gz'))
         map2nifti(ds, dataset.vstack(oalphas)). \
             to_filename(os.path.join(
-            paths[0], 'analysis', writeopts['outdir'],
+            paths['root'], 'analysis', writeopts['outdir'],
             writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_alphas.nii.gz'))
         map2nifti(ds, dataset.vstack(res)). \
             to_filename(os.path.join(
-            paths[0], 'analysis', writeopts['outdir'],
+            paths['root'], 'analysis', writeopts['outdir'],
             writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_res.nii.gz'))
         map2nifti(ds, dataset.vstack(ceil)). \
             to_filename(os.path.join(
-            paths[0], 'analysis', writeopts['outdir'],
+            paths['root'], 'analysis', writeopts['outdir'],
             writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_ceil.nii.gz'))
     return wts, oalphas, res, ceil

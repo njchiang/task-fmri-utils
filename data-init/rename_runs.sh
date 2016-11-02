@@ -62,14 +62,16 @@ do
 		do
 			orig_name=`echo ${line} | cut -d ',' -f1`
 			target_name=`echo ${line} | cut -d ',' -f2`
-			if [ LINK == "true" ]
-			then
-				ln -s ${OPATH}/data${sub}/raw/${orig_name}/${orig_name}.nii.gz \
-					${OPATH}/data${sub}/raw/${target_name}
-			else
-				cp ${OPATH}/data${sub}/raw/${orig_name}/${orig_name}.nii.gz \
-					${OPATH}/data${sub}/raw/${target_name}
-			fi
+			for i in ${OPATH}/data/${sub}/raw/${orig_name}*
+			do
+				targetfile=echo ${i} | sed "s/${orig_name}/${target_name}/g"
+				if [ LINK == "true" ]
+				then
+					ln -s ${i} ${targetfile}
+				else
+					cp ${i} ${targetfile}
+				fi
+			done
 		done < ${OPATH}/data/${sub}/behav/${FILENAME}.txt
 	fi
 done
