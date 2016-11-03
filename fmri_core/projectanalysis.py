@@ -95,12 +95,8 @@ def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None, **searchlight_a
 
 ###############################
 ### encoding
-<<<<<<< HEAD
-def encoding(paths, ds, des, c, chunklen, nchunks, mus=None, covarmat=None, alphas=None, writeopts=None, **bsargs):
-=======
 def encoding(paths, ds, des, c, chunklen, nchunks,
              mus=None, covarmat=None, alphas=None, writeopts=None, **bsargs):
->>>>>>> origin/master
     """
     rds: input dataset
     events: events (list)
