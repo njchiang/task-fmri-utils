@@ -30,7 +30,7 @@ from mvpa2.measures import rsa
 dsm = rsa.PDist(square=True)
 
 
-def plot_mtx(mtx, labels, title=None, vmin=0, vmax=1, ):
+def plot_mtx(mtx, labels, title=None, vmin=0, vmax=1):
     import matplotlib.pyplot as plt
     f, ax = plt.subplots()
     im = ax.imshow(mtx, interpolation='nearest', vmin=vmin, vmax=vmax)
@@ -44,7 +44,7 @@ def plot_mtx(mtx, labels, title=None, vmin=0, vmax=1, ):
     return f, ax
 
 
-def rankTransform(mat):
+def ranktransform(mat):
     # scales from 0-1
     import scipy.spatial.distance as ds
     import numpy as np
@@ -88,13 +88,19 @@ def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None, **searchlight_a
         from mvpa2.base import dataset
         map2nifti(fds, dataset.vstack(res)).\
             to_filename(os.path.join(
-                        paths[0], 'analysis', writeopts['outdir'],
+                        paths['root'], 'analysis', writeopts['outdir'],
                         writeopts['sub'] + '_' + writeopts['roi'] + '_' + writeopts['con'] + '_cvsl.nii.gz'))
     return res
 
+
 ###############################
 ### encoding
+<<<<<<< HEAD
 def encoding(paths, ds, des, c, chunklen, nchunks, mus=None, covarmat=None, alphas=None, writeopts=None, **bsargs):
+=======
+def encoding(paths, ds, des, c, chunklen, nchunks,
+             mus=None, covarmat=None, alphas=None, writeopts=None, **bsargs):
+>>>>>>> origin/master
     """
     rds: input dataset
     events: events (list)
@@ -125,18 +131,18 @@ def encoding(paths, ds, des, c, chunklen, nchunks, mus=None, covarmat=None, alph
         from mvpa2.base import dataset
         map2nifti(ds, dataset.vstack(wts)).\
             to_filename(os.path.join(
-            paths[0], 'analysis', writeopts['outdir'],
+            paths['root'], 'analysis', writeopts['outdir'],
             writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_wts.nii.gz'))
         map2nifti(ds, dataset.vstack(oalphas)). \
             to_filename(os.path.join(
-            paths[0], 'analysis', writeopts['outdir'],
+            paths['root'], 'analysis', writeopts['outdir'],
             writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_alphas.nii.gz'))
         map2nifti(ds, dataset.vstack(res)). \
             to_filename(os.path.join(
-            paths[0], 'analysis', writeopts['outdir'],
+            paths['root'], 'analysis', writeopts['outdir'],
             writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_res.nii.gz'))
         map2nifti(ds, dataset.vstack(ceil)). \
             to_filename(os.path.join(
-            paths[0], 'analysis', writeopts['outdir'],
+            paths['root'], 'analysis', writeopts['outdir'],
             writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_ceil.nii.gz'))
     return wts, oalphas, res, ceil

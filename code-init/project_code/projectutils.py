@@ -14,7 +14,7 @@ def initpaths():
     import os
     import sys
     import pandas as pd
-    p = []
+    p = {}
     if 'win' in sys.platform:
         root = "D:\\"
         dataroot = os.path.join(root, "fmri")
@@ -22,12 +22,12 @@ def initpaths():
         root = os.path.join('/Users', 'njchiang')
         dataroot = os.path.join('/Volumes', 'JEFF', 'UCLA')
 
-    p.append(os.path.join(dataroot, PROJECTNAME))
-    p.append(os.path.join(dataroot, PROJECTNAME, 'code'))
-    p.append(os.path.join(root, 'CloudStation', 'Grad', 'Research', PROJECTNAME))
+    p['root'] = os.path.join(dataroot, PROJECTNAME)
+    p['code'] = os.path.join(dataroot, PROJECTNAME, 'code')
+    p['cloud'] = os.path.join(root, 'CloudStation', 'Grad', 'Research', PROJECTNAME)
     c=None
     try:
-        c = pd.read_csv(os.path.join(p[1], 'labels', 'conds_key.txt'), sep='\t').to_dict('list')
+        c = pd.read_csv(os.path.join(p['code'], 'labels', 'conds_key.txt'), sep='\t').to_dict('list')
     except IOError as e:
         print "I/O error:".format(e.errno, e.strerror)
     except ValueError:
@@ -45,16 +45,16 @@ def loadsubbetas(p, s, method="LSS", btype='tstat', m=None):
     # load subject data with paths list, s: sub, c: contrast, m: mask
     print s
     import os
-    bsp = os.path.join(p[0], "data", s, "preproc")
+    bsp = os.path.join(p['root'], "data", s, "analysis")
     bsn = str(s + "_" + method + "_" + btype + ".nii.gz")
     bs = os.path.join(bsp, bsn)
-    mnp = os.path.join(p[0], "data", s, "masks")
+    mnp = os.path.join(p['root'], "data", s, "analysis", "masks")
     mn = str(s + "_" + m + ".nii.gz")
     mf = os.path.join(mnp, mn)
     from mvpa2.datasets.mri import fmri_dataset
     fds = fmri_dataset(samples=bs, mask=mf)
     import pandas as pd
-    lp = os.path.join(p[0], "data", s, "behav", "labels")
+    lp = os.path.join(p['root'], "data", s, "behav", "labels")
     attrs = pd.read_csv(os.path.join(lp, str(s + "_" + method + "_betas.tsv")), sep='\t')
     fds.sa['chunks'] = attrs['run'].tolist()
     for c in attrs.keys():
@@ -82,14 +82,16 @@ def loadrundata(p, s, r, m=None, c='trial_type'):
     from mvpa2.datasets.mri import fmri_dataset
     from mvpa2.datasets.sources import bids as bids
     # motion corrected and coregistered
-    bfn = pjoin(p[0], 'data', s, 'preproc', s + '_' + r + '.nii.gz')
+    # depends on the file name
+    # bfn = pjoin(p['root'], 'data', s, 'analysis', s + '_' + r + '.nii.gz')
+    bfn = pjoin(p['root'], 'data', s, 'analysis', r + '.nii.gz')
     if m is not None:
-        m = pjoin(p[0], 'data', s, 'masks', s+'_'+m+'.nii.gz')
+        m = pjoin(p['root'], 'data', s, 'analysis', 'masks', s+'_'+m+'.nii.gz')
         d = fmri_dataset(bfn, chunks=int(r.split('n')[1]), mask=m)
     else:
         d = fmri_dataset(bfn, chunks=int(r.split('n')[1]))
     # This line-- should be different if we're doing GLM, etc.
-    efn = pjoin(p[0], 'data', s, 'behav', 'labels', s + '_' + r + '.tsv')
+    efn = pjoin(p['root'], 'data', s, 'behav', 'labels', s + '_' + r + '.tsv')
     fe = bids.load_events(efn)
     if c is None:
         tmpe = events2dict(fe)
@@ -145,8 +147,10 @@ def loadmotionparams(p, s):
     import os
     res = {}
     for sub in s.keys():
-        mcs = [np.loadtxt(os.path.join(p[0], 'data', sub, 'preproc', 'intermediate',
-                                       sub + '_' + r + '_mc', sub + '_' + r + '_mc.par'))
+        # mcs = [np.loadtxt(os.path.join(p['root'], 'data', sub, 'raw',
+        #                                sub + '_' + r + '_mc.par'))
+        #        for r in s[sub]]
+        mcs = [np.loadtxt(os.path.join(p['root'], 'data', sub, 'raw', r + '_mc.par'))
                for r in s[sub]]
         res[sub] = np.vstack(mcs)
     return res
@@ -409,10 +413,10 @@ def preprocess_encoding(ds, events, c, mp=None, design_kwargs=None):
     if design_kwargs is None:
         design_kwargs = {'hrf_model': 'canonical', 'drift_model': 'blank'}
     des_dict, rds = make_designmat(ds, events, time_attr='time_coords', condition_attr=c,
-                               design_kwargs=design_kwargs, regr_attrs=None)
+                                   design_kwargs=design_kwargs, regr_attrs=None)
     if mp is not None:
         des_dict['motion'] = make_dmtx(ds.sa['time_coords'].value, paradigm=None,
-                                   add_regs=mp, drift_model='blank')
+                                       add_regs=mp, drift_model='blank')
 
     des = make_parammat(des_dict, hrf='canonical', zscore=True)
     return rds, des
