@@ -8,13 +8,16 @@ else:
 
 ########################################
 ### preprocessing
-def beta_extract(ds, events, c='trial_type', design_kwargs=None):
+def beta_extract(ds, events, c='trial_type', design_kwargs=None, return_model=True):
     import mvpa2.datasets.eventrelated as er
     # {'add_regs': mc_params[sub], 'hrf_model': 'canonical'}
+    if isinstance(c, basestring):
+        c = [c]
+    c.append('chunks')
     evds = er.fit_event_hrf_model(ds, events, time_attr='time_coords',
-                                  condition_attr=(c, 'chunks'),
+                                  condition_attr=tuple(c),
                                   design_kwargs=design_kwargs,
-                                  return_model=True)
+                                  return_model=return_model)
     return evds
 
 
