@@ -138,10 +138,15 @@ do
 	
 	echo "BOLD template" >> ${logfile}
 	cmd="sh ${GITDIR}/data-init/BOLD_template.sh -p ${OPATH} -s ${s} \
-				-f ${REFERENCE}_preproc -o ${REFERENCE} --template"
+				-f ${REFERENCE}_prepro€ý,€ý,c -o ${REFERENCE} --template"
 	echo ${cmd} >> ${logfile}
 	${cmd}
 
+	echo "Register masks" >> ${logfile}
+	cmd="sh ${GITDIR}/data-init/register_masks.sh -p ${OPATH} -s ${s} \
+		-t ${REFERENCE} -m grayMatter"
+	echo ${cmd} >> ${logfile}
+	${cmd}
 
 	for r in $RUNLIST
 	do
