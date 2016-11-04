@@ -138,7 +138,7 @@ do
 	
 	echo "BOLD template" >> ${logfile}
 	cmd="sh ${GITDIR}/data-init/BOLD_template.sh -p ${OPATH} -s ${s} \
-				-f ${REFERENCE}_prepro€ý,€ý,c -o ${REFERENCE} --template"
+				-f ${REFERENCE}_preproc -o ${REFERENCE} --template"
 	echo ${cmd} >> ${logfile}
 	${cmd}
 
