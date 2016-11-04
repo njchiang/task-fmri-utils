@@ -71,6 +71,11 @@ echo "Register to: ${REGISTRATION_TARGET}"
 echo "logging to: ${logfile}"
 echo "Registering masks" >> $logfile
 
+if [ ${FILE_HEADER} ]
+then
+	FILE_HEADER="${FILE_HEADER}_"
+fi
+
 if [ ${REGISTRATION_TARGET} == "None" ]
 then
 	echo "No registration target specified"
@@ -80,7 +85,7 @@ else
 		echo "Registering ${m}"
 		echo "Registering ${m}" >> ${logfile}
 		cmd="flirt -in ${PROJECTDIR}/data/${MASKDIR}/${m} \
-			-out ${PROJECTDIR}/data/${SUB}/analysis/masks/${FILE_HEADER}_${m} \
+			-out ${PROJECTDIR}/data/${SUB}/analysis/masks/${FILE_HEADER}${m} \
 			-ref ${PROJECTDIR}/data/${SUB}/analysis/reg/${REGISTRATION_TARGET}_template_BOLD \
 			-applyxfm -init	${PROJECTDIR}/data/${SUB}/analysis/reg/${REGISTRATION_TARGET}_standard_to_template.mat"
 		echo ${cmd} >> ${logfile}
