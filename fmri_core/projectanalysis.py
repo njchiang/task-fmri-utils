@@ -1,9 +1,10 @@
 # analysis scripts. THESE DON'T GET MODIFIED
-import sys, os
-if sys.platform == 'darwin':
-    sys.path.append(os.path.join("/Users", "njchiang", "GitHub", "task-fmri-utils"))
-else:
-    sys.path.append(os.path.join("D:\\", "GitHub", "task-fmri-utils"))
+import os
+# import sys, os
+# if sys.platform == 'darwin':
+#     sys.path.append(os.path.join("/Users", "njchiang", "GitHub", "task-fmri-utils"))
+# else:
+#     sys.path.append(os.path.join("D:\\", "GitHub", "task-fmri-utils"))
 
 
 ########################################
