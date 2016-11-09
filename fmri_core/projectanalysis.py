@@ -30,8 +30,26 @@ def error2acc(d):
 
 ######################################
 ### MVPA/RSA
-from mvpa2.measures import rsa
-dsm = rsa.PDist(square=True)
+def rsa(ds, order=False, plot=False, plotargs=None):
+    import numpy as np
+    from mvpa2.measures import rsa
+    dsm = rsa.PDist(square=True)
+    if order:
+        idx = np.argsort(ds.sa.targets)
+        mds = ds[idx]
+    else:
+        mds = ds
+
+    mtx = dsm(mds)
+    f = None
+    ax = None
+    if plot:
+        if plotargs is None:
+            f, ax = plot_mtx(mtx, mds.sa.targets, title=None, vmin=0, vmax=1)
+        else:
+            f, ax = plot_mtx(mtx, mds.sa.targets, **plotargs)
+
+    return mtx, f, ax
 
 
 def plot_mtx(mtx, labels, title=None, vmin=0, vmax=1):
