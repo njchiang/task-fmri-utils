@@ -30,10 +30,10 @@ def error2acc(d):
 
 ######################################
 ### MVPA/RSA
-def rsa(ds, order=False, plot=False, plotargs=None):
+def rsa(ds, order=False, rank=False, plot=False, plotargs=None):
     import numpy as np
     from mvpa2.measures import rsa
-    dsm = rsa.PDist(square=True)
+    dsm = rsa.PDist(pairwise_metric='cosine', square=True)
     if order:
         idx = np.argsort(ds.sa.targets)
         mds = ds[idx]
@@ -43,12 +43,14 @@ def rsa(ds, order=False, plot=False, plotargs=None):
     mtx = dsm(mds)
     f = None
     ax = None
-    if plot:
-        if plotargs is None:
-            f, ax = plot_mtx(mtx, mds.sa.targets, title=None, vmin=0, vmax=1)
-        else:
-            f, ax = plot_mtx(mtx, mds.sa.targets, **plotargs)
 
+    if not plotargs:
+        plotargs={'title': None, 'vmin': 0, 'vmax': 1}
+    if plot:
+        if rank:
+            f, ax = plot_mtx(ranktransform(mtx), mds.sa.targets, **plotargs)
+        else:
+            f, ax = plot_mtx((mtx), mds.sa.targets, **plotargs)
     return mtx, f, ax
 
 
@@ -118,7 +120,7 @@ def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None, **searchlight_a
 ###############################
 ### encoding
 def encoding(paths, ds, des, c, chunklen, nchunks,
-             mus=None, covarmat=None, alphas=None, writeopts=None, **bsargs):
+             mus=None, covarmat=None, alphas=None, writeopts=None, bsargs=None):
     """
     rds: input dataset
     events: events (list)
