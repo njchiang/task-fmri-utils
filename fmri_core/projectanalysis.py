@@ -120,7 +120,7 @@ def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None, **searchlight_a
 ###############################
 ### encoding
 def encoding(paths, ds, des, c, chunklen, nchunks,
-             mus=None, covarmat=None, alphas=None, writeopts=None, **bsargs):
+             mus=None, covarmat=None, alphas=None, writeopts=None, bsargs=None):
     """
     rds: input dataset
     events: events (list)
