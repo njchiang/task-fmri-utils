@@ -1,15 +1,17 @@
 #!/bin/bash - 
 #===============================================================================
 #
-#          FILE: call_univariate.sh
+#          FILE: univariate_setup.sh
 # 
-#         USAGE: ./call_univariate.sh 
+#         USAGE: ./univariate_setup.sh 
 # 
 #   DESCRIPTION: 
-#   call_univariate.sh
+#   univariate_setup.sh
 #   runs a sed replacement on the supplied subject, run and design file
 #   should flexibly be able to take in sed arguments and generate it.
-#   The fsf file should be specified ahead of time 
+#   The fsf file should be specified ahead of time
+#   This will reference the filemapping.txt file in order to specify the BOLD
+#   scan unless otherwise specified
 #       OPTIONS: ---
 #       inputs: 
 #       -d design fsf file
@@ -34,7 +36,9 @@ INPUT=''
 OUTPUT=''
 SUB="None"
 RUN="None"
-DESIGN="None"
+fmap="filemapping.txt"
+TEMPLATE="None"
+EXECUTE=False
 while [[ $# -ge 1 ]]
 do
 	key="$1"
@@ -47,10 +51,6 @@ do
 		SUB="$2"
 		shift # past argument
 		;;
-		-r|--run)
-		RUN="$2"
-		shift
-		;;
 		-i|--input)
 		INPUT="$2"
 		shift
@@ -59,9 +59,12 @@ do
 		OUTPUT="$2"
 		shift
 		;;
-		-d|--design)
-		DESIGN="$2"
+		-t|--template)
+		TEMPLATE="$2"
 		shift
+		;;
+		-e|--execute)
+		EXECUTE=True
 		;;
 		*)
         echo " \
@@ -84,15 +87,38 @@ outputs into analysis/univariate/subject
 	esac
 	shift # past argument or value
 done
-echo "Root directory: ${PROJECTDIR}"
-echo "Subject: ${SUB} Run: ${RUN}"
-echo "Input file: ${INPUT}"
-echo "Output file: ${OUTPUT}"
-echo "Design fsf: ${DESIGN}"
 
-VOL=`fslinfo ${PROJECTDIR}/data/${SUB}/preproc/${INPUT} dim4`
+function sedreplace {
+vol=`fslinfo ${1}/data/${3}/raw/${5} dim4`
+sed -e "s@###SUB###@${3}@g" -e "s@###RUN###@${4}@g" -e "s@###VOL###@${vol}}@g" \
+	  -e "s@###INPUT###@${5}@g" -e "s@###OUTPUT###@${6}@g" \
+	  ${1}/code/templates/${2E}.fsf > ${1}/data/${3}/notes/${3}_${4}_${2}.fsf
 
-  sed -e "s@###SUB###@${SUB}@g" -e "s@###RUN###@${RUN}@g" -e "s@###VOL###@${VOL}@g" \
-	  -e "s@###INPUT###@${INPUT}@g" -e "s@###OUTPUT###@${OUTPUT}@g" \
-	  ${PROJECTDIR}/code/des/${DESIGN}.fsf > ${PROJECTDIR}/data/${SUB}/des/${SUB}_${RUN}_${DESIGN}.fsf
-  feat ${PROJECTDIR}/data/${SUB}/des/${SUB}_${RUN}_${DESIGN}.fsf
+}
+
+
+if [[ ${RUN} == "None" ]] && [ [${INPUT} == "None" ]]
+then
+	echo "Root directory: ${PROJECTDIR}"
+	echo "Subject: ${SUB}"
+	echo "Looping through runs in ${fmap}"
+	echo "Design fsf: ${DESIGN}"
+	echo "Output file: ${OUTPUT}"
+	echo "Replacing: "
+	while read line
+	do
+		output=`echo ${line} | cut -d ',' -f2`
+		if [ [${output} == *"Run"* ]]
+		then
+			file=`echo ${line} | cut -d ',' -f1`
+			rn=`echo ${output} | cut -d -f2
+			printf -v j "%05d" $i
+			sedreplace ${PROJECTDIR} ${TEMPLATE} ${SUB} ${run} ${file} ${OUTPUT}
+		fi
+	done < ${PROJECTDIR}/data/${SUB}/behav/${fmap}
+else
+echo "Input file: ${INPUT} | Run: ${RUN}"
+fi
+
+
+    feat ${PROJECTDIR}/data/${SUB}/des/${SUB}_${RUN}_${DESIGN}.fsf
