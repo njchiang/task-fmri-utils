@@ -16,7 +16,8 @@ sh randomise_classification.sh -n mfx_design.fsf -s grayMatter -m grayMatter
 
 doc
 RETURNHERE=${PWD}
-MODEL=mfx_design.fsf
+DESIGN=mfx_design
+MODEL=None
 CHANCE=0
 HEADER=None
 MASK=None
@@ -30,6 +31,10 @@ key="$1"
 case $key in
     -n|--model)
     MODEL="$2"
+    shift # past argument
+    ;;
+	-d|--design)
+    DESIGN="$2"
     shift # past argument
     ;;
     -r|--path)
@@ -54,6 +59,10 @@ case $key in
 	;;
 	-s|--slmask)
 	SLMASK="$2"
+	shift # past argument
+	;;
+	-o|--override)
+	OVERRIDE="$2"
 	shift # past argument
 	;;
     *)
@@ -86,13 +95,13 @@ echo "OVERRIDE  = ${OVERRIDE}"
 projectDir=${ROOTDIR}/fmri/${PROJECT}
 codeDir=${HOMEDIR}/GitHub/task-fmri-utils
 desDir=${HOMEDIR}/CloudStation/Grad/Research/${PROJECT}/code/templates
-refImage=${projectDir}/data/standard/MNI152_T1_2mm_brain.nii.gz
-refMask=${projectDir}/data/standard/MNI152_T1_2mm_brain_mask.nii.gz
+refImage=${FSLDIR}/data/standard/MNI152_T1_2mm_brain.nii.gz
+refMask=${FSLDIR}/data/standard/MNI152_T1_2mm_brain_mask.nii.gz
 targetDir=${projectDir}/${RESPATH}
 
 cd ${targetDir}
 
-if [ ! -f ${SLMASK}_${MODEL}_Group.nii.gz ] || [ $OVERRIDE == "TRUE" ]
+if [ ! -f ${SLMASK}_${MODEL}_Group.nii.gz ] || [ "$OVERRIDE" == "TRUE" ]
 then
 	echo "Moving files"
 	#move raw outputs
@@ -105,7 +114,7 @@ then
 	do
 		sub=`echo ${indMap} | cut -d '_' -f1`
 		echo ${sub}
-		fslmaths ${projectDir}/data/$sub/analysis/masks/${sub}_${SLMASK}.nii.gz -bin tmp.nii.gz
+		fslmaths ${projectDir}/data/$sub/analysis/masks/${SLMASK}.nii.gz -bin tmp.nii.gz
 
 		if [ "$CHANCE" == "0" ]
 		then
@@ -123,7 +132,7 @@ then
 	done
 
 	fslmerge -t ../${SLMASK}_${MODEL}_Group.nii.gz \
-		../std/${HEADER}*_${SLMASK}_${MODEL}.nii.gz
+		../std/std_${HEADER}*_${SLMASK}_${MODEL}.nii.gz
 #	../std/std_LMVPA001_${MASK}_${MODEL}.nii.gz \
 #	../std/std_LMVPA002_${MASK}_${MODEL}.nii.gz \
 #	../std/std_LMVPA003_${MASK}_${MODEL}.nii.gz \
@@ -146,7 +155,7 @@ then
 fi
 
 randomise -i ${SLMASK}_${MODEL}_Group.nii.gz -o n1000_${MASK}_${MODEL} \
-	-v 5 -d $desDir/mfx_design.mat -t $desDir/mfx_design.con \
+	-v 5 -d $desDir/${DESIGN}.mat -t $desDir/${DESIGN}.con \
 	-T -x --uncorrp -n 1000 -m ${projectDir}/data/standard/masks/${MASK}
 	
 fdr -i n1000_${MASK}_${MODEL}_tfce_p_tstat1 --oneminusp -m ${projectDir}/data/standard/masks/${MASK} \
@@ -154,11 +163,6 @@ fdr -i n1000_${MASK}_${MODEL}_tfce_p_tstat1 --oneminusp -m ${projectDir}/data/st
 
 fdr -i n1000_${MASK}_${MODEL}_vox_p_tstat1 --oneminusp -m ${projectDir}/data/standard/masks/${MASK} \
 	-q 0.05 -a n1000_${MASK}_${MODEL}_vox_fdrp_tstat1
-		
-fdr -i n1000_${MASK}_${MODEL}_tfce_p_tstat2 --oneminusp -m ${projectDir}/data/standard/masks/${MASK} \
-	-q 0.05 -a n1000_${MASK}_${MODEL}_tfce_fdrp_tstat2
 
-fdr -i n1000_${MASK}_${MODEL}_vox_p_tstat2 --oneminusp -m ${projectDir}/data/standard/masks/${MASK} \
-	-q 0.05 -a n1000_${MASK}_${MODEL}_vox_fdrp_tstat2
 	
 cd ${RETURNHERE}

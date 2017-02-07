@@ -105,7 +105,7 @@ def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None, **searchlight_a
     wsc_start_time = time.time()
     print "running SL at " + time.strftime("%H:%M:%S")
     res = cvsl(fds)
-    print "done in " + str((time.time() - wsc_start_time,)) + " seconds"
+    print "done in " + str((time.time() - wsc_start_time)) + " seconds"
     res = error2acc(res)
     if writeopts:
         from mvpa2.datasets.mri import map2nifti

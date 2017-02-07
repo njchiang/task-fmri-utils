@@ -51,7 +51,7 @@ do
 		shift
 		;;
 		-d|--directory)
-		MASKDIR=${s}
+		MASKDIR=${2}
 		shift
 		;;
 		*)
