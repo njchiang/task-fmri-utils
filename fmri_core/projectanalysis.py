@@ -1,5 +1,6 @@
 # analysis scripts. THESE DON'T GET MODIFIED
 import os
+import logging
 # import sys, os
 # if sys.platform == 'darwin':
 #     sys.path.append(os.path.join("/Users", "njchiang", "GitHub", "task-fmri-utils"))
@@ -7,14 +8,36 @@ import os
 #     sys.path.append(os.path.join("D:\\", "GitHub", "task-fmri-utils"))
 
 
+#######################################
+# Setup logging
+def setup_logger(loc, fname='analysis'):
+    from datetime import datetime
+    logging.basicConfig(filename=os.path.join(loc, fname + '.log'),
+                        datefmt='%m-%d %H:%M',
+                        level=logging.DEBUG)
+    logger = logging.getLogger(fname)
+    logger.info('--------------------------------')
+    logger.info("Session started at " + str(datetime.now()))
+    return logger
+
+
+def write_to_logger(msg, logger=None):
+    if logger is not None:
+        logger.info(msg)
+    else:
+        print msg
+    return
+
+
 ########################################
 ### preprocessing
-def beta_extract(ds, events, c='trial_type', design_kwargs=None, return_model=True):
+def beta_extract(ds, events, c='trial_type', design_kwargs=None, return_model=True, logger=None):
     import mvpa2.datasets.eventrelated as er
     # {'add_regs': mc_params[sub], 'hrf_model': 'canonical'}
     if isinstance(c, basestring):
         c = [c]
     c.append('chunks')
+    write_to_logger("beta-extracting... ", logger)
     evds = er.fit_event_hrf_model(ds, events, time_attr='time_coords',
                                   condition_attr=tuple(c),
                                   design_kwargs=design_kwargs,
@@ -26,6 +49,96 @@ def error2acc(d):
     d.samples *= -1
     d.samples += 1
     return d
+
+
+#######################################
+### searchlight
+def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None, logger=None, **searchlight_args):
+    write_to_logger("starting searchlight... ", logger)
+    ## initialize classifier
+    fds = ds.copy(deep=False, sa=['targets', 'chunks'], fa=['voxel_indices'], a=['mapper'])
+
+    if cv is None:
+        if clf is None:
+            from mvpa2.clfs import svm
+            clf = svm.LinearNuSVMC()
+        from mvpa2.measures.base import CrossValidation
+        from mvpa2.generators.partition import NFoldPartitioner
+        cv = CrossValidation(clf, NFoldPartitioner())
+
+    from mvpa2.measures.searchlight import sphere_searchlight
+    cvsl = sphere_searchlight(cv, radius=r, **searchlight_args)
+    import time
+    wsc_start_time = time.time()
+    res = cvsl(fds)
+    write_to_logger(("done in " + str((time.time() - wsc_start_time)) + " seconds"), logger)
+    res = error2acc(res)
+    if writeopts:
+        from mvpa2.datasets.mri import map2nifti
+        from mvpa2.base import dataset
+        map2nifti(fds, dataset.vstack(res)).\
+            to_filename(os.path.join(
+                        paths['root'], 'analysis', writeopts['outdir'],
+                        writeopts['sub'] + '_' + writeopts['roi'] + '_' + writeopts['con'] + '_cvsl.nii.gz'))
+        write_to_logger(("Writing to: " +
+                         os.path.join(paths['root'],
+                                      'analysis',
+                                      writeopts['outdir'],
+                                      writeopts['sub'] + '_' + writeopts['roi'] + '_' + writeopts['con'] + '_cvsl.nii.gz')), logger)
+    return res
+
+
+###############################
+### encoding
+def encoding(paths, ds, des, c, chunklen, nchunks,
+             mus=None, covarmat=None, alphas=None, writeopts=None, logger=None, bsargs=None):
+    """
+    rds: input dataset
+    events: events (list)
+    c: contrast (or contrasts) of interest
+    chunklen: length of a chunk
+    nchunks: number of chunks
+    mp: motion parameters (to regress)
+    alphas: regularization parameters
+    nboots: number of bootstraps
+    mus: regularization towards
+    covarmat: covariance matrix for regularization
+    """
+    import numpy as np
+    if covarmat is not None:
+        if mus is None:
+            mus = np.zeros(covarmat.shape[1])
+
+    if alphas is None:
+        alphas = np.logspace(-1, 3, 50)
+    from pythonutils import bootstrapridge as bsr
+    if bsargs is None:
+        bsargs = {'part_attr': 'chunks', 'mode': 'test', 'single_alpha': True, 'normalpha': False,
+                  'nboots': 50, 'corrmin': .2, 'singcutoff': 1e-10, 'joined': None, 'plot': False, 'use_corr': True}
+    wts, oalphas, res, ceil = bsr.bootstrap_ridge(ds, des, chunklen=chunklen, nchunks=nchunks,
+                                                  cov0=covarmat, mu0=mus, alphas=alphas, **bsargs)
+    if writeopts:
+        from mvpa2.datasets.mri import map2nifti
+        from mvpa2.base import dataset
+        write_to_logger(("Writing results to: " +
+                         os.path.join(paths['root'], 'analysis', writeopts['outdir'])), logger)
+        map2nifti(ds, dataset.vstack(wts)).\
+            to_filename(os.path.join(
+            paths['root'], 'analysis', writeopts['outdir'],
+            writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_wts.nii.gz'))
+        map2nifti(ds, dataset.vstack(oalphas)). \
+            to_filename(os.path.join(
+            paths['root'], 'analysis', writeopts['outdir'],
+            writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_alphas.nii.gz'))
+        map2nifti(ds, dataset.vstack(res)). \
+            to_filename(os.path.join(
+            paths['root'], 'analysis', writeopts['outdir'],
+            writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_res.nii.gz'))
+        map2nifti(ds, dataset.vstack(ceil)). \
+            to_filename(os.path.join(
+            paths['root'], 'analysis', writeopts['outdir'],
+            writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_ceil.nii.gz'))
+    return wts, oalphas, res, ceil
 
 
 ######################################
@@ -84,85 +197,3 @@ def ranktransform(mat):
     return newmat
 
 
-#######################################
-### searchlight
-def searchlight(paths, ds, r, clf=None, cv=None, writeopts=None, **searchlight_args):
-    print "searchlights"
-    ## initialize classifier
-    fds = ds.copy(deep=False, sa=['targets', 'chunks'], fa=['voxel_indices'], a=['mapper'])
-
-    if cv is None:
-        if clf is None:
-            from mvpa2.clfs import svm
-            clf = svm.LinearNuSVMC()
-        from mvpa2.measures.base import CrossValidation
-        from mvpa2.generators.partition import NFoldPartitioner
-        cv = CrossValidation(clf, NFoldPartitioner())
-
-    from mvpa2.measures.searchlight import sphere_searchlight
-    cvsl = sphere_searchlight(cv, radius=r, **searchlight_args)
-    import time
-    wsc_start_time = time.time()
-    print "running SL at " + time.strftime("%H:%M:%S")
-    res = cvsl(fds)
-    print "done in " + str((time.time() - wsc_start_time)) + " seconds"
-    res = error2acc(res)
-    if writeopts:
-        from mvpa2.datasets.mri import map2nifti
-        from mvpa2.base import dataset
-        map2nifti(fds, dataset.vstack(res)).\
-            to_filename(os.path.join(
-                        paths['root'], 'analysis', writeopts['outdir'],
-                        writeopts['sub'] + '_' + writeopts['roi'] + '_' + writeopts['con'] + '_cvsl.nii.gz'))
-    return res
-
-
-###############################
-### encoding
-def encoding(paths, ds, des, c, chunklen, nchunks,
-             mus=None, covarmat=None, alphas=None, writeopts=None, bsargs=None):
-    """
-    rds: input dataset
-    events: events (list)
-    c: contrast (or contrasts) of interest
-    chunklen: length of a chunk
-    nchunks: number of chunks
-    mp: motion parameters (to regress)
-    alphas: regularization parameters
-    nboots: number of bootstraps
-    mus: regularization towards
-    covarmat: covariance matrix for regularization
-    """
-    import numpy as np
-    if covarmat is not None:
-        if mus is None:
-            mus = np.zeros(covarmat.shape[1])
-
-    if alphas is None:
-        alphas = np.logspace(-1, 3, 50)
-    from pythonutils import bootstrapridge as bsr
-    if bsargs is None:
-        bsargs = {'part_attr': 'chunks', 'mode': 'test', 'single_alpha': True, 'normalpha': False,
-                  'nboots': 50, 'corrmin': .2, 'singcutoff': 1e-10, 'joined': None, 'plot': False, 'use_corr': True}
-    wts, oalphas, res, ceil = bsr.bootstrap_ridge(ds, des, chunklen=chunklen, nchunks=nchunks,
-                                                  cov0=covarmat, mu0=mus, alphas=alphas, **bsargs)
-    if writeopts:
-        from mvpa2.datasets.mri import map2nifti
-        from mvpa2.base import dataset
-        map2nifti(ds, dataset.vstack(wts)).\
-            to_filename(os.path.join(
-            paths['root'], 'analysis', writeopts['outdir'],
-            writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_wts.nii.gz'))
-        map2nifti(ds, dataset.vstack(oalphas)). \
-            to_filename(os.path.join(
-            paths['root'], 'analysis', writeopts['outdir'],
-            writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_alphas.nii.gz'))
-        map2nifti(ds, dataset.vstack(res)). \
-            to_filename(os.path.join(
-            paths['root'], 'analysis', writeopts['outdir'],
-            writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_res.nii.gz'))
-        map2nifti(ds, dataset.vstack(ceil)). \
-            to_filename(os.path.join(
-            paths['root'], 'analysis', writeopts['outdir'],
-            writeopts['sub'] + '_' + writeopts['roi'] + '_' + '+'.join(c) + '_ceil.nii.gz'))
-    return wts, oalphas, res, ceil
