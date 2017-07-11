@@ -12,7 +12,7 @@ import logging
 # Setup logging
 def setup_logger(loc, fname='analysis'):
     from datetime import datetime
-    logging.basicConfig(filename=os.path.join(loc, fname + sys.logger '.log'),
+    logging.basicConfig(filename=os.path.join(loc, fname + sys.platform + '.log'),
                         datefmt='%m-%d %H:%M',
                         level=logging.DEBUG)
     logger = logging.getLogger(fname)
