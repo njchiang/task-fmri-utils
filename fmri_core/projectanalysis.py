@@ -1,5 +1,5 @@
 # analysis scripts. THESE DON'T GET MODIFIED
-import os
+import os, sys
 import logging
 # import sys, os
 # if sys.platform == 'darwin':
@@ -12,7 +12,7 @@ import logging
 # Setup logging
 def setup_logger(loc, fname='analysis'):
     from datetime import datetime
-    logging.basicConfig(filename=os.path.join(loc, fname + '.log'),
+    logging.basicConfig(filename=os.path.join(loc, fname + sys.logger '.log'),
                         datefmt='%m-%d %H:%M',
                         level=logging.DEBUG)
     logger = logging.getLogger(fname)
