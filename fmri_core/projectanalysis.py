@@ -25,7 +25,7 @@ def write_to_logger(msg, logger=None):
     if logger is not None:
         logger.info(msg)
     else:
-        print msg
+        print(msg)
     return
 
 
