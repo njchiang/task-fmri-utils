@@ -28,7 +28,7 @@ if sys.platform == 'darwin':
 else:
     sys.path.append(os.path.join("D:\\", "GitHub", "task-fmri-utils"))
     sys.path.append(os.path.join("D:\\", "fmri", PROJECTTITLE, "code"))
-from fmri_core import projectanalysis as pa
+from fmri_core import projectanalysis_pymvpa as pa
 from project_code import projectutils as pu
 # need a trial_type attribute
 PATHS, SUBLIST, CONTRASTS = pu.initpaths()
