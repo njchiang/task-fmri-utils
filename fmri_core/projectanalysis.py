@@ -24,8 +24,9 @@ def write_to_logger(msg, logger=None):
 
 
 #######################################
-#JSON config
-# TODO : load config files (definitely write them first...) or should we leave in BIDS format for automatically fetching?
+# File I/O
+#######################################
+# JSON I/O
 def loadConfig(*path):
     with open(os.path.join(*path), 'r') as f:
         d = simplejson.load(f)
@@ -39,11 +40,32 @@ def writeConfig(d, *path):
 
 
 def formatBIDSName(*args):
-    return ('_').join([*args])
+    return ('_').join(args)
 
 
-#######################################
-# Nilearn wrappers for my analyses
+# Matlab I/O
+def save_mat_data(*fn, **kwargs):
+    """
+    :param fn: path to file
+    :param kwargs: any key value pairs-- keys will become fieldnames of the struct with value.
+    :return: None: write a mat file
+    """
+    from scipy.io import savemat
+    savemat(os.path.join(*fn), kwargs)
+    return kwargs
+
+
+def load_mat_data(*args):
+    """
+    Loads matlab file (just a wrapper)
+    :param args: path to file
+    :return: dict
+    """
+    from scipy.io import loadmat
+    return loadmat(os.path.join(*args))
+
+
+# Nilearn
 def loadImg(*path, logger=None):
     """
     Simple wrapper for nilearn load_img to load NIFTI images
@@ -61,7 +83,7 @@ def loadImg(*path, logger=None):
 
 def loadLabels(*args, logger=None, **pdargs):
     """
-    Simple wrapper using Pandas to load lable files
+    Simple wrapper using Pandas to load label files
     :param p: path to subject directory
     :param s: subject
     :param l: filename (plus leading directories)
@@ -75,6 +97,9 @@ def loadLabels(*args, logger=None, **pdargs):
     return pd.read_csv(lp, **pdargs)
 
 
+#######################################
+# Image processing
+#######################################
 def maskImg(im, mask, logger=None):
     """
     Wrapper for apply_mask (adds logging)
@@ -84,13 +109,17 @@ def maskImg(im, mask, logger=None):
     :return: masked image
     """
     from nilearn import masking
-    write_to_logger("Masking " + im, logger)
     if isinstance(im, str):
+        write_to_logger("Masking " + im, logger)
         return masking.apply_mask(im, mask)
     else:
+        write_to_logger("Masking file")
         return masking._apply_mask_fmri(im, mask)
 
 
+#######################################
+# Analysis setup
+#######################################
 # TODO : set up cross validation (stratified)
 def setup_cv():
     import sklearn.model_selection as ms
