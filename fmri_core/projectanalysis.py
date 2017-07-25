@@ -184,13 +184,27 @@ def unmaskImg(d, mask):
     return unmask(d, mask)
 
 
+def niPreproc(img, mask=None, sessions=None, **kwargs):
+    """
+    applies nilearn's NiftiMasker to data
+    :param img: image to be processed
+    :param mask: mask (optional)
+    :param sessions: chunks (optional)
+    :param kwargs: kwargs for NiftiMasker from NiLearn
+    :return: preprocessed image (result of fit_transform() on img)
+    """
+    from nilearn.input_data import NiftiMasker
+    return NiftiMasker(mask_img=mask, sessions=sessions, **kwargs).fit_transform(img)
+
+
 #######################################
 # Analysis setup
 #######################################
 # TODO : make this return an image instead of just data? (use dataToImg)
+# TODO : also need to make this return reoriented labels, verify it is working
 def opByLabel(d, l, op=None):
     """
-    apply operation to each unique value of the label
+    apply operation to each unique value of the label and returns the data in its original order
     :param d: data (2D numpy array)
     :param l: label to operate on
     :param op: operation to carry (scikit learn)
@@ -200,7 +214,9 @@ def opByLabel(d, l, op=None):
     if op is None:
         from sklearn.preprocessing import StandardScaler
         op = StandardScaler()
-    return np.concatenate([op.fit_transform(d[l == i]) for i in l.unique()], axis=0)
+    opD = np.concatenate([op.fit_transform(d[l.values == i]) for i in l.unique()], axis=0)
+    lOrder = np.concatenate([l.index[l.values == i] for i in l.unique()], axis=0)
+    return opD[lOrder]  # I really hope this works...
 
 
 def sgfilter(**sgparams):
@@ -305,7 +321,7 @@ def roi(x, y, clf, m=None, cv=None, **roiargs):
         X = maskImg(x, m)
     else:
         X = x
-    return ms.cross_val_score(clf, X, y, cv, **roiargs)
+    return ms.cross_val_score(estimator=clf, X=X, y=y, cv=cv, **roiargs)
 
 
 def searchlight(x, y, m=None, cv=None, write=False, logger=None, **searchlight_args):
