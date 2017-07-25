@@ -187,6 +187,7 @@ def unmaskImg(d, mask):
 #######################################
 # Analysis setup
 #######################################
+# TODO : make this return an image instead of just data? (use dataToImg)
 def opByLabel(d, l, op=None):
     """
     apply operation to each unique value of the label
