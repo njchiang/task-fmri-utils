@@ -324,12 +324,13 @@ def roi(x, y, clf, m=None, cv=None, **roiargs):
     return ms.cross_val_score(estimator=clf, X=X, y=y, cv=cv, **roiargs)
 
 
-def searchlight(x, y, m=None, cv=None, write=False, logger=None, **searchlight_args):
+def searchlight(x, y, m=None, groups=None, cv=None, write=False, logger=None, **searchlight_args):
     """
     Wrapper to launch searchlight
     :param x: Data
     :param y: labels
     :param m: mask
+    :param groups: group labels
     :param cv: cross validator
     :param write: if image for writing is desired or not
     :param logger:
@@ -343,7 +344,7 @@ def searchlight(x, y, m=None, cv=None, write=False, logger=None, **searchlight_a
         m = masking.compute_epi_mask(x)
     write_to_logger("searchlight params: " + str(searchlight_args))
     sl = decoding.SearchLight(mask_img=m, cv=cv, **searchlight_args)
-    sl.fit(x, y)
+    sl.fit(x, y, groups)
     if write:
         return sl, image.new_img_like(image.mean_img(x), sl.scores_)
     else:
