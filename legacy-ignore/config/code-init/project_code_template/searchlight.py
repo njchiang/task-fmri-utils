@@ -11,8 +11,9 @@ For troubleshooting and parameter testing an ipynb exists too.
 # initialize stuff
 PROJECTTITLE = ''
 
-import sys
 import os
+import sys
+
 if sys.platform == 'darwin':
     sys.path.append(os.path.join("/Users", "njchiang", "GitHub", "task-fmri-utils"))
     sys.path.append(os.path.join("/Volumes", "JEFF", "UCLA", PROJECTTITLE, "code"))
