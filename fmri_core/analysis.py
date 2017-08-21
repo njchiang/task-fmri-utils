@@ -9,20 +9,22 @@ from .utils import write_to_logger, maskImg
 #######################################
 # TODO : make this return an image instead of just data? (use dataToImg)
 # TODO : also need to make this return reoriented labels, verify it is working
-def niPreproc(img, mask=None, sessions=None, **kwargs):
+def niPreproc(img, mask=None, sessions=None, logger=None, **kwargs):
     """
     applies nilearn's NiftiMasker to data
     :param img: image to be processed
     :param mask: mask (optional)
     :param sessions: chunks (optional)
+    :param logger: logger instance
     :param kwargs: kwargs for NiftiMasker from NiLearn
     :return: preprocessed image (result of fit_transform() on img)
     """
     from nilearn.input_data import NiftiMasker
+    write_to_logger("Running NiftiMasker...", logger)
     return NiftiMasker(mask_img=mask, sessions=sessions, **kwargs).fit_transform(img)
 
 
-def opByLabel(d, l, op=None):
+def opByLabel(d, l, op=None, logger=None):
     """
     apply operation to each unique value of the label and returns the data in its original order
     :param d: data (2D numpy array)
@@ -31,6 +33,7 @@ def opByLabel(d, l, op=None):
     :return: processed data
     """
     import numpy as np
+    write_to_logger("applying operation by label", logger)
     if op is None:
         from sklearn.preprocessing import StandardScaler
         op = StandardScaler()
@@ -39,17 +42,46 @@ def opByLabel(d, l, op=None):
     return opD[lOrder]  # I really hope this works...
 
 
-def sgfilter(**sgparams):
+def sgfilter(logger=None, **sgparams):
     from scipy.signal import savgol_filter
     from sklearn.preprocessing import FunctionTransformer
+    write_to_logger("Running SG filter", logger)
     return FunctionTransformer(savgol_filter, kw_args=sgparams)
 
 
 #######################################
 # Analysis
 #######################################
+def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None, design_kwargs=None, logger=None):
+    """
+    Creates design matrix from TSV columns
+    :param frametimes: time index (in s) of each TR
+    :param cond_ids: condition ids. each unique string will become a regressor
+    :param onsets: condition onsets
+    :param durations: durations of trials
+    :param amplitudes: amplitude of trials (default None)
+    :param design_kwargs: additional arguments(motion parameters, HRF, etc)
+    :param logger: logger instance
+    :return: design matrix instance
+    """
+    if design_kwargs is None:
+        design_kwargs = {}
+    if "drift_model" not in design_kwargs.keys():
+        design_kwargs["drift_model"] = "blank"
+
+    from nipy.modalities.fmri.design_matrix import make_dmtx
+    from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
+
+    write_to_logger("Creating design matrix...", logger)
+    paradigm = BlockParadigm(con_id=cond_ids,
+                             onset=onsets,
+                             duration=durations,
+                             amplitude=amplitudes)
+    return make_dmtx(frametimes, paradigm, **design_kwargs)
+
+
 # TODO : Add RSA functionality (needs a .fit)
-def covdiag(x, df=None, shrinkage=None):
+def covdiag(x, df=None, shrinkage=None, logger=None):
     """
     Regularize estimate of covariance matrix according to optimal shrinkage method
     Ledoit& Wolf (2005), translated for covdiag.m (rsatoolbox- MATLAB)
@@ -80,7 +112,7 @@ def covdiag(x, df=None, shrinkage=None):
     return sigma, shrink, sampleCov
 
 
-def noiseNormalizeBeta(betas, resids, df, shrinkage=None):
+def noiseNormalizeBeta(betas, resids, df, shrinkage=None, logger=None):
     # find resids
     # TODO : add other measures from noiseNormalizeBeta
     import numpy as np
@@ -91,23 +123,23 @@ def noiseNormalizeBeta(betas, resids, df, shrinkage=None):
     # resMS =
 
 
-def indicatorMatrix():
+def indicatorMatrix(logger=None):
     pass
 
 
-def crossnobis(betas, resid, ):
+def crossnobis(betas, resid, logger=None):
     # each iteration: find inverse of X and apply to left out iter
 
     pass
 
 
-def rdm(X, square=False, **pdistargs):
+def rdm(X, square=False, logger=None, **pdistargs):
     """
     Calculate distance matrix
     :param X: data
     :param square: shape of output (square or vec)
     :param pdistargs: notably: include "metric"
-    :return:
+    :return: pairwise distances between items in X
     """
     from scipy.spatial.distance import pdist, squareform
     # add crossnobis estimator
@@ -118,9 +150,28 @@ def rdm(X, square=False, **pdistargs):
     return r
 
 
-# TODO : Add Encoding
-def encoding():
-    pass
+def encoding(x_train, y_train, x_test, y_test, logger=None):
+    """
+    Encoding (prediction) analysis. Assumes data is pre-split into train and test
+    For now, just uses Ridge regression. Later will use cross-validated Ridge.
+    :param x_train: Input design matrix
+    :param y_train: Fit data
+    :param x_test: Test design matrix
+    :param y_test: Test data
+    :param logger: logging instance
+    :return: Correlation scores, weights
+    """
+    # Later this will be tikhonov, for now use ridge
+    import numpy as np
+    import sklearn.linear_model as Tik
+    # check that ndim == 2
+    if y_train.ndim > 2:
+        write_to_logger("Too many input dimensions", logger)
+        return None
+    clf = Tik.Ridge()
+    pred = clf.fit(x_train, y_train).predict(x_test)
+    corrs = np.array([np.corrcoef(y_test[:, i], pred[:, i])[0, 1] for i in range(pred.shape[1])])
+    return corrs, clf.coef_
 
 
 def roi(x, y, clf, m=None, cv=None, **roiargs):
