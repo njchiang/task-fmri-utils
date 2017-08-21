@@ -72,6 +72,8 @@ def make_lss_reg():
                 'glm_label_' + str(con) + '_' + '+'.join(str(ei[c]) for c in [con])
     pass
 # TODO : Add design matrix
+
+# TODO : add beta extraction (lss vs lsa)
 # new make_designmat from scratch
 def make_designmat(tr, events, design_kwargs=None, regr_attrs=None):
     # make glm regressors for all attributes. so loop through condition_attr and add them all...
