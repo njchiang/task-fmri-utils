@@ -45,7 +45,7 @@ def opByLabel(d, l, op=None, logger=None):
 def sgfilter(logger=None, **sgparams):
     from scipy.signal import savgol_filter
     from sklearn.preprocessing import FunctionTransformer
-    write_to_logger("Running SG filter", logger)
+    write_to_logger("Creating SG filter", logger)
     return FunctionTransformer(savgol_filter, kw_args=sgparams)
 
 
