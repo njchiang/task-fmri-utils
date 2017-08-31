@@ -52,7 +52,8 @@ def sgfilter(logger=None, **sgparams):
 #######################################
 # Analysis
 #######################################
-def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None, design_kwargs=None, logger=None):
+def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
+                   design_kwargs=None, constant=False, logger=None):
     """
     Creates design matrix from TSV columns
     :param frametimes: time index (in s) of each TR
@@ -77,7 +78,12 @@ def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None, des
                              onset=onsets,
                              duration=durations,
                              amplitude=amplitudes)
-    return make_dmtx(frametimes, paradigm, **design_kwargs)
+    dm = make_dmtx(frametimes, paradigm, **design_kwargs)
+    if constant is False:
+        import numpy as np
+        dm.matrix = np.delete(dm.matrix, dm.names.index("constant"), axis=1)
+        dm.names = dm.names.remove("constant")
+    return dm
 
 
 # TODO : Add RSA functionality (needs a .fit)
@@ -150,25 +156,28 @@ def rdm(X, square=False, logger=None, **pdistargs):
     return r
 
 
-def encoding(x_train, y_train, x_test, y_test, logger=None):
+def encoding(x_train, y_train, x_test, y_test, clf=None, logger=None):
     """
-    Encoding (prediction) analysis. Assumes data is pre-split into train and test
+    Encoding (prediction) analysis. Assumes data is pre-split into train a-nd test
     For now, just uses Ridge regression. Later will use cross-validated Ridge.
     :param x_train: Input design matrix
     :param y_train: Fit data
     :param x_test: Test design matrix
     :param y_test: Test data
+    :param clf: sklearn model with .fit and .predict
     :param logger: logging instance
     :return: Correlation scores, weights
     """
     # Later this will be tikhonov, for now use ridge
     import numpy as np
-    import sklearn.linear_model as Tik
     # check that ndim == 2
     if y_train.ndim > 2:
         write_to_logger("Too many input dimensions", logger)
         return None
-    clf = Tik.Ridge()
+    if clf is None:
+        from sklearn.linear_model import Ridge
+        clf = Ridge()
+
     pred = clf.fit(x_train, y_train).predict(x_test)
     corrs = np.array([np.corrcoef(y_test[:, i], pred[:, i])[0, 1] for i in range(pred.shape[1])])
     return corrs, clf.coef_
