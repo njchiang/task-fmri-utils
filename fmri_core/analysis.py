@@ -9,7 +9,7 @@ from .utils import write_to_logger, maskImg
 #######################################
 # TODO : make this return an image instead of just data? (use dataToImg)
 # TODO : also need to make this return reoriented labels, verify it is working
-def niPreproc(img, mask=None, sessions=None, logger=None, **kwargs):
+def nipreproc(img, mask=None, sessions=None, logger=None, **kwargs):
     """
     applies nilearn's NiftiMasker to data
     :param img: image to be processed
@@ -24,7 +24,7 @@ def niPreproc(img, mask=None, sessions=None, logger=None, **kwargs):
     return NiftiMasker(mask_img=mask, sessions=sessions, **kwargs).fit_transform(img)
 
 
-def opByLabel(d, l, op=None, logger=None):
+def op_by_label(d, l, op=None, logger=None):
     """
     apply operation to each unique value of the label and returns the data in its original order
     :param d: data (2D numpy array)
@@ -92,7 +92,7 @@ def covdiag(x, df=None, shrinkage=None, logger=None):
     Regularize estimate of covariance matrix according to optimal shrinkage method
     Ledoit& Wolf (2005), translated for covdiag.m (rsatoolbox- MATLAB)
     :param x: T obs by p random variables
-    :param df: degrees of freedom
+    :param df: degrees of freedomc
     :param shrinkage: shrinkage factor
     :return: sigma, invertible covariance matrix estimator
              shrink: shrinkage factor
