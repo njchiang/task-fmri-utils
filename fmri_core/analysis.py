@@ -1,6 +1,3 @@
-import os, sys
-import logging
-import simplejson
 from .utils import write_to_logger, maskImg
 
 
@@ -21,12 +18,15 @@ def nipreproc(img, mask=None, sessions=None, logger=None, **kwargs):
     """
     from nilearn.input_data import NiftiMasker
     write_to_logger("Running NiftiMasker...", logger)
-    return NiftiMasker(mask_img=mask, sessions=sessions, **kwargs).fit_transform(img)
+    return NiftiMasker(mask_img=mask,
+                       sessions=sessions,
+                       **kwargs).fit_transform(img)
 
 
 def op_by_label(d, l, op=None, logger=None):
     """
-    apply operation to each unique value of the label and returns the data in its original order
+    apply operation to each unique value of the label and
+    returns the data in its original order
     :param d: data (2D numpy array)
     :param l: label to operate on
     :param op: operation to carry (scikit learn)
@@ -37,8 +37,10 @@ def op_by_label(d, l, op=None, logger=None):
     if op is None:
         from sklearn.preprocessing import StandardScaler
         op = StandardScaler()
-    opD = np.concatenate([op.fit_transform(d[l.values == i]) for i in l.unique()], axis=0)
-    lOrder = np.concatenate([l.index[l.values == i] for i in l.unique()], axis=0)
+    opD = np.concatenate([op.fit_transform(d[l.values == i])
+                         for i in l.unique()], axis=0)
+    lOrder = np.concatenate([l.index[l.values == i]
+                            for i in l.unique()], axis=0)
     return opD[lOrder]  # I really hope this works...
 
 
@@ -89,8 +91,8 @@ def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
 # TODO : Add RSA functionality (needs a .fit)
 def covdiag(x, df=None, shrinkage=None, logger=None):
     """
-    Regularize estimate of covariance matrix according to optimal shrinkage method
-    Ledoit& Wolf (2005), translated for covdiag.m (rsatoolbox- MATLAB)
+    Regularize estimate of covariance matrix according to optimal shrinkage
+    method Ledoit& Wolf (2005), translated for covdiag.m (rsatoolbox- MATLAB)
     :param x: T obs by p random variables
     :param df: degrees of freedomc
     :param shrinkage: shrinkage factor
@@ -105,12 +107,13 @@ def covdiag(x, df=None, shrinkage=None, logger=None):
         df = t-1
     X = x - x.mean(0)
     sampleCov = 1/df * np.dot(X.T, X)
-    prior = np.diag(np.diag(sampleCov)) # diagonal of sampleCov
+    prior = np.diag(np.diag(sampleCov))  # diagonal of sampleCov
     if shrinkage is None:
         d = 1 / n * np.linalg.norm(sampleCov-prior, ord='fro')**2
         y = X**2
-        r2=1 / n / df**2 * np.sum(np.dot(y.T,y)) - 1 / n / df * np.sum(sampleCov**2)
-        shrink = max(0,min(1,r2/d));
+        r2 = 1 / n / df**2 * np.sum(np.dot(y.T, y)) - \
+             1 / n / df * np.sum(sampleCov**2)
+        shrink = max(0, min(1, r2 / d))
     else:
         shrink = shrinkage
 
@@ -156,36 +159,32 @@ def rdm(X, square=False, logger=None, **pdistargs):
     return r
 
 
-def encoding(x_train, y_train, x_test, y_test, clf=None, logger=None):
+def predict(clf, x, y, logger=None):
     """
-    Encoding (prediction) analysis. Assumes data is pre-split into train a-nd test
+    Encoding prediction. Assumes data is pre-split into train and test
     For now, just uses Ridge regression. Later will use cross-validated Ridge.
-    :param x_train: Input design matrix
-    :param y_train: Fit data
-    :param x_test: Test design matrix
-    :param y_test: Test data
-    :param clf: sklearn model with .fit and .predict
+    :param clf: trained classifier
+    :param x: Test design matrix
+    :param y: Test data
     :param logger: logging instance
     :return: Correlation scores, weights
     """
-    # Later this will be tikhonov, for now use ridge
     import numpy as np
-    # check that ndim == 2
-    if y_train.ndim > 2:
-        write_to_logger("Too many input dimensions", logger)
-        return None
-    if clf is None:
-        from sklearn.linear_model import Ridge
-        clf = Ridge()
-
-    pred = clf.fit(x_train, y_train).predict(x_test)
-    corrs = np.array([np.corrcoef(y_test[:, i], pred[:, i])[0, 1] for i in range(pred.shape[1])])
-    return corrs, clf.coef_
+    pred = clf.predict(x)
+    if y.ndim < 2:
+        y = y[:, np.newaxis]
+    if pred.ndim < 2:
+        pred = pred[:, np.newaxis]
+    write_to_logger("Predicting", logger)
+    corrs = np.array([np.corrcoef(y[:, i], pred[:, i])[0, 1]
+                     for i in range(pred.shape[1])])
+    return corrs
 
 
 def roi(x, y, clf, m=None, cv=None, **roiargs):
     """
-    Cross validation on a masked roi. Need to decide if this function does preprocessing or not
+    Cross validation on a masked roi. Need to decide if this
+    function does preprocessing or not
     (probably should pipeline in)
     pa.roi(x, y, clf, m, cv, groups=labels['chunks'])
     :param x: input image
@@ -204,7 +203,8 @@ def roi(x, y, clf, m=None, cv=None, **roiargs):
     return ms.cross_val_score(estimator=clf, X=X, y=y, cv=cv, **roiargs)
 
 
-def searchlight(x, y, m=None, groups=None, cv=None, write=False, logger=None, **searchlight_args):
+def searchlight(x, y, m=None, groups=None, cv=None,
+                write=False, logger=None, **searchlight_args):
     """
     Wrapper to launch searchlight
     :param x: Data
@@ -214,7 +214,8 @@ def searchlight(x, y, m=None, groups=None, cv=None, write=False, logger=None, **
     :param cv: cross validator
     :param write: if image for writing is desired or not
     :param logger:
-    :param searchlight_args:(default) process_mask_img(None), radius(2mm), estimator(svc),
+    :param searchlight_args:(default) process_mask_img(None),
+                            radius(2mm), estimator(svc),
                             n_jobs(-1), scoring(none), cv(3fold), verbose(0)
     :return: trained SL object and SL results
     """
