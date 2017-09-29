@@ -1,11 +1,14 @@
 import os, sys
 import logging
 import simplejson
+import numpy as np
+import pandas as pd
+
 
 #######################################
 # Setup logging
 #######################################
-def setup_logger(*loc, fname='analysis'):
+def setup_logger(*loc, fname="analysis"):
     """
     Setting up log file
     :param loc: location of file
@@ -14,12 +17,12 @@ def setup_logger(*loc, fname='analysis'):
     """
     from datetime import datetime
     logging.basicConfig(filename=os.path.join(*loc,
-                                              fname + '-' +
-                                              sys.platform + '.log'),
-                        datefmt='%m-%d %H:%M',
+                                              fname + "-" +
+                                              sys.platform + ".log"),
+                        datefmt="%m-%d %H:%M",
                         level=logging.DEBUG)
     logger = logging.getLogger(fname)
-    logger.info('--------------------------------')
+    logger.info("--------------------------------")
     logger.info("Session started at " + str(datetime.now()))
     return logger
 
@@ -51,7 +54,7 @@ def loadConfig(*path, logger=None):
     :return: dict with JSON contents
     """
     write_to_logger("Loading JSON config from " + os.path.join(*path), logger)
-    with open(os.path.join(*path), 'r') as f:
+    with open(os.path.join(*path), "r") as f:
         d = simplejson.load(f)
     return d
 
@@ -65,8 +68,8 @@ def writeConfig(d, *path, logger=None):
     :return: None
     """
     write_to_logger("Writing JSON config to " + os.path.join(*path), logger)
-    with open(os.path.join(*path), 'wt') as f:
-        simplejson.dump(d, f, indent=4 * ' ')
+    with open(os.path.join(*path), "wt") as f:
+        simplejson.dump(d, f, indent=4 * " ")
     return
 
 
@@ -77,7 +80,7 @@ def formatBIDSName(*args):
     :param args: items to join
     :return: name
     """
-    return ('_').join(args)
+    return ("_").join(args)
 
 
 # Matlab I/O
@@ -118,7 +121,7 @@ def loadImg(*path, logger=None):
     bs = os.path.join(*path)
     from nilearn import image
     write_to_logger("Reading file from: " + bs, logger)
-    return image.load_img(bs)
+    return image.load_img(bs, dtype=np.float64)
 
 
 def loadLabels(*args, logger=None, **pdargs):
@@ -129,7 +132,6 @@ def loadLabels(*args, logger=None, **pdargs):
     :param pdargs: pandas read_csv args
     :return: pandas DataFrame with labels
     """
-    import pandas as pd
     lp = os.path.join(*args)
     write_to_logger("Loading label file from: " + lp, logger)
     return pd.read_csv(lp, **pdargs)
@@ -138,9 +140,9 @@ def loadLabels(*args, logger=None, **pdargs):
 #######################################
 # Image processing
 #######################################
-def estimateMask(im, st='background', logger=None):
+def estimateMask(im, st="background", logger=None):
     """
-    mask the wholehead image (if we don't have one).
+    mask the wholehead image (if we don"t have one).
     wrapper for NiLearn implementation
     :param im: image
     :param st: type of automatic extraction. epi for epi images,
@@ -150,7 +152,7 @@ def estimateMask(im, st='background', logger=None):
     """
     from nilearn import masking
     write_to_logger("Estimating masks...", logger)
-    if st == 'epi':
+    if st == "epi":
         mask = masking.compute_epi_mask(im)
     else:
         mask = masking.compute_background_mask(im)
@@ -168,10 +170,10 @@ def maskImg(im, mask=None, logger=None):
     from nilearn import masking
     if isinstance(im, str):
         write_to_logger("Masking " + im, logger)
-        return masking.apply_mask(im, mask)
+        return masking.apply_mask(im, mask, dtype=np.float64)
     else:
         write_to_logger("Masking file")
-        return masking._apply_mask_fmri(im, mask)
+        return masking._apply_mask_fmri(im, mask, dtype=np.float64)
 
 
 def dataToImg(d, img, copy_header=False, logger=None):
