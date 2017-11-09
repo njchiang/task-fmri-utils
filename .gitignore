@@ -1,6 +1,11 @@
 # old files
 legacy-ignore/
 
+# ignore data
+*.nii.gz
+*.mat
+*.tsv
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
