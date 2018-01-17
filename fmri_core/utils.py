@@ -1,8 +1,13 @@
 import os, sys
 import logging
-import simplejson
+import json
 import numpy as np
 import pandas as pd
+from datetime import datetime
+from scipy.io import loadmat
+from scipy.io import savemat
+from nilearn import image
+from nilearn import masking
 
 
 #######################################
@@ -15,7 +20,6 @@ def setup_logger(*loc, fname="analysis"):
     :param fname: log file name
     :return: logger instance
     """
-    from datetime import datetime
     logging.basicConfig(filename=os.path.join(*loc,
                                               fname + "-" +
                                               sys.platform + ".log"),
@@ -41,12 +45,11 @@ def write_to_logger(msg, logger=None):
     return
 
 
-
 #######################################
 # File I/O
 #######################################
 # JSON I/O
-def loadConfig(*path, logger=None):
+def load_config(*path, logger=None):
     """
     Load JSON config file
     :param path: path to json
@@ -55,11 +58,11 @@ def loadConfig(*path, logger=None):
     """
     write_to_logger("Loading JSON config from " + os.path.join(*path), logger)
     with open(os.path.join(*path), "r") as f:
-        d = simplejson.load(f)
+        d = json.load(f)
     return d
 
 
-def writeConfig(d, *path, logger=None):
+def write_config(d, *path, logger=None):
     """
     Write JSON file
     :param d: dict to write
@@ -69,12 +72,12 @@ def writeConfig(d, *path, logger=None):
     """
     write_to_logger("Writing JSON config to " + os.path.join(*path), logger)
     with open(os.path.join(*path), "wt") as f:
-        simplejson.dump(d, f, indent=4 * " ")
+        json.dump(d, f, indent=4)
     return
 
 
 # TODO : change this to keyworded?
-def formatBIDSName(*args):
+def format_bids_name(*args):
     """
     write BIDS format name (may change this later)
     :param args: items to join
@@ -92,7 +95,6 @@ def save_mat_data(*fn, logger=None, **kwargs):
     fieldnames of the struct with value.
     :return: None: write a mat file
     """
-    from scipy.io import savemat
     write_to_logger("Saving mat data to " + os.path.join(*fn), logger)
     savemat(os.path.join(*fn), kwargs)
     return kwargs
@@ -105,13 +107,12 @@ def load_mat_data(*args, logger=None):
     :param logger: logger instance or none
     :return: dict
     """
-    from scipy.io import loadmat
     write_to_logger("Loading mat file...", logger)
     return loadmat(os.path.join(*args))
 
 
 # Nilearn
-def loadImg(*path, logger=None):
+def load_img(*path, logger=None):
     """
     Simple wrapper for nilearn load_img to load NIFTI images
     :param path: path to subject directory
@@ -119,12 +120,11 @@ def loadImg(*path, logger=None):
     :return: Nifti1Image
     """
     bs = os.path.join(*path)
-    from nilearn import image
     write_to_logger("Reading file from: " + bs, logger)
     return image.load_img(bs, dtype=np.float64)
 
 
-def loadLabels(*args, logger=None, **pdargs):
+def load_labels(*args, logger=None, **pdargs):
     """
     Simple wrapper using Pandas to load label files
     :param args: path to file directory
@@ -140,7 +140,7 @@ def loadLabels(*args, logger=None, **pdargs):
 #######################################
 # Image processing
 #######################################
-def estimateMask(im, st="background", logger=None):
+def estimate_mask(im, st="background", logger=None):
     """
     mask the wholehead image (if we don"t have one).
     wrapper for NiLearn implementation
@@ -150,7 +150,6 @@ def estimateMask(im, st="background", logger=None):
     :param logger: logger file
     :return: mask
     """
-    from nilearn import masking
     write_to_logger("Estimating masks...", logger)
     if st == "epi":
         mask = masking.compute_epi_mask(im)
@@ -159,7 +158,7 @@ def estimateMask(im, st="background", logger=None):
     return mask
 
 
-def maskImg(im, mask=None, logger=None):
+def mask_img(im, mask=None, logger=None):
     """
     Wrapper for apply_mask (adds logging)
     :param im: image
@@ -167,7 +166,6 @@ def maskImg(im, mask=None, logger=None):
     :param logger: logger ID
     :return: masked image
     """
-    from nilearn import masking
     if isinstance(im, str):
         write_to_logger("Masking " + im, logger)
         return masking.apply_mask(im, mask, dtype=np.float64)
@@ -176,7 +174,7 @@ def maskImg(im, mask=None, logger=None):
         return masking._apply_mask_fmri(im, mask, dtype=np.float64)
 
 
-def dataToImg(d, img, copy_header=False, logger=None):
+def data_to_img(d, img, copy_header=False, logger=None):
     """
     Wrapper for new_image_like
     :param img: Image with header you want to add
@@ -185,12 +183,11 @@ def dataToImg(d, img, copy_header=False, logger=None):
     :param logger: logger instance
     :return: Image file
     """
-    from nilearn import image
     write_to_logger("converting data to image...", logger)
     return image.new_img_like(image.mean_img(img), d, copy_header=copy_header)
 
 
-def unmaskImg(d, mask, logger=None):
+def unmask_img(d, mask, logger=None):
     """
     Unmasks matrix d according to mask
     :param d: numpy array (2D)
@@ -198,6 +195,5 @@ def unmaskImg(d, mask, logger=None):
     :param logger: logger instance
     :return: image file
     """
-    from nilearn.masking import unmask
     write_to_logger("unmasking image...", logger)
-    return unmask(d, mask)
+    return masking.unmask(d, mask)
