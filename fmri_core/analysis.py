@@ -1,4 +1,14 @@
-from .utils import write_to_logger, maskImg
+from .utils import write_to_logger, mask_img, data_to_img
+
+import numpy as np
+from nilearn.input_data import NiftiMasker
+from scipy.spatial.distance import pdist, squareform
+from scipy.signal import savgol_filter
+from nipy.modalities.fmri.design_matrix import make_dmtx
+from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
+from sklearn.preprocessing import FunctionTransformer
+import sklearn.model_selection as ms
+from nilearn import decoding, masking
 
 
 #######################################
@@ -16,7 +26,6 @@ def nipreproc(img, mask=None, sessions=None, logger=None, **kwargs):
     :param kwargs: kwargs for NiftiMasker from NiLearn
     :return: preprocessed image (result of fit_transform() on img)
     """
-    from nilearn.input_data import NiftiMasker
     write_to_logger("Running NiftiMasker...", logger)
     return NiftiMasker(mask_img=mask,
                        sessions=sessions,
@@ -32,7 +41,6 @@ def op_by_label(d, l, op=None, logger=None):
     :param op: operation to carry (scikit learn)
     :return: processed data
     """
-    import numpy as np
     write_to_logger("applying operation by label", logger)
     if op is None:
         from sklearn.preprocessing import StandardScaler
@@ -45,8 +53,6 @@ def op_by_label(d, l, op=None, logger=None):
 
 
 def sgfilter(logger=None, **sgparams):
-    from scipy.signal import savgol_filter
-    from sklearn.preprocessing import FunctionTransformer
     write_to_logger("Creating SG filter", logger)
     return FunctionTransformer(savgol_filter, kw_args=sgparams)
 
@@ -72,9 +78,6 @@ def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
     if "drift_model" not in design_kwargs.keys():
         design_kwargs["drift_model"] = "blank"
 
-    from nipy.modalities.fmri.design_matrix import make_dmtx
-    from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
-
     write_to_logger("Creating design matrix...", logger)
     paradigm = BlockParadigm(con_id=cond_ids,
                              onset=onsets,
@@ -82,7 +85,6 @@ def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
                              amplitude=amplitudes)
     dm = make_dmtx(frametimes, paradigm, **design_kwargs)
     if constant is False:
-        import numpy as np
         dm.matrix = np.delete(dm.matrix, dm.names.index("constant"), axis=1)
         dm.names = dm.names.remove("constant")
     return dm
@@ -101,7 +103,6 @@ def covdiag(x, df=None, shrinkage=None, logger=None):
              sample: sample covariance (un-regularized)
     """
     # TODO : clean this code up
-    import numpy as np
     t, n = x.shape
     if df is None:
         df = t-1
@@ -121,10 +122,9 @@ def covdiag(x, df=None, shrinkage=None, logger=None):
     return sigma, shrink, sampleCov
 
 
-def noiseNormalizeBeta(betas, resids, df, shrinkage=None, logger=None):
+def noise_normalize_beta(betas, resids, df, shrinkage=None, logger=None):
     # find resids
     # TODO : add other measures from noiseNormalizeBeta
-    import numpy as np
     vox_cov_reg, shrink, vox_cov = covdiag(resids, df, shrinkage=shrinkage)
     V, L = np.linalg.eig(vox_cov_reg)
     sq = np.dot(V, V.T/np.sqrt(L))
@@ -132,7 +132,7 @@ def noiseNormalizeBeta(betas, resids, df, shrinkage=None, logger=None):
     # resMS =
 
 
-def indicatorMatrix(logger=None):
+def indicator_matrix(logger=None):
     pass
 
 
@@ -150,7 +150,6 @@ def rdm(X, square=False, logger=None, **pdistargs):
     :param pdistargs: notably: include "metric"
     :return: pairwise distances between items in X
     """
-    from scipy.spatial.distance import pdist, squareform
     # add crossnobis estimator
     if square:
         r = squareform(pdist(X, **pdistargs))
@@ -169,7 +168,6 @@ def predict(clf, x, y, logger=None):
     :param logger: logging instance
     :return: Correlation scores, weights
     """
-    import numpy as np
     pred = clf.predict(x)
     if y.ndim < 2:
         y = y[:, np.newaxis]
@@ -195,9 +193,8 @@ def roi(x, y, clf, m=None, cv=None, **roiargs):
     :param roiargs: other model_selection arguments, especially groups
     :return: CV results
     """
-    import sklearn.model_selection as ms
     if m is not None:
-        X = maskImg(x, m)
+        X = mask_img(x, m)
     else:
         X = x
     return ms.cross_val_score(estimator=clf, X=X, y=y, cv=cv, **roiargs)
@@ -220,13 +217,12 @@ def searchlight(x, y, m=None, groups=None, cv=None,
     :return: trained SL object and SL results
     """
     write_to_logger("starting searchlight... ", logger)
-    from nilearn import image, decoding, masking
     if m is None:
         m = masking.compute_epi_mask(x)
     write_to_logger("searchlight params: " + str(searchlight_args))
     sl = decoding.SearchLight(mask_img=m, cv=cv, **searchlight_args)
     sl.fit(x, y, groups)
     if write:
-        return sl, image.new_img_like(image.mean_img(x), sl.scores_)
+        return sl, data_to_img(sl.scores_, x, logger=logger)
     else:
         return sl
