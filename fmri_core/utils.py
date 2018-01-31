@@ -197,3 +197,8 @@ def unmask_img(d, mask, logger=None):
     """
     write_to_logger("unmasking image...", logger)
     return masking.unmask(d, mask)
+
+
+#######################################
+# Computation
+#######################################
