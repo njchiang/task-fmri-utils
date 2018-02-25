@@ -9,6 +9,7 @@ from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from sklearn.preprocessing import FunctionTransformer
 import sklearn.model_selection as ms
 from nilearn import decoding, masking
+from scipy.stats import wilcoxon, spearmanr
 
 
 #######################################
@@ -151,11 +152,55 @@ def rdm(X, square=False, logger=None, **pdistargs):
     :return: pairwise distances between items in X
     """
     # add crossnobis estimator
-    if square:
-        r = squareform(pdist(X, **pdistargs))
+    write_to_logger("Generating RDM", logger)
+    if "metric" in pdistargs:
+        if pdistargs["metric"] == "spearman":
+            r = squareform(spearman_distance(X), checks=False)
+        else:
+            r = pdist(X, **pdistargs)
     else:
         r = pdist(X, **pdistargs)
+
+    if square:
+        r = squareform(r)
     return r
+
+
+def rsa_stats(rdms, models, pairwise=True, logger=None, **test_args):
+    # TODO : handle stack of RDMs and 2d matrix of them
+    pass
+    # if rdms.ndim == 2:
+    #     # run wilcoxon on each column
+    #     pass
+    # elif rdms.ndim == 3:
+    #     rdms = np.vstack([squareform(rdms[...,r], checks=False) for r in range(rdms.shape[-1])])
+    # else:
+    #     write_to_logger("Incorrect number of dimensions. \
+    #     Please include stacked or vectorized RDMs", logger)
+    #     pairwise=False
+    #
+    #
+    # np.apply_along_axis(wilcoxon_onesided, axis=0, arr=rdms, **test_args)
+    #
+    # if pairwise:
+    #     # run wilcoxon on each pair of columns
+    #     pass
+    #
+    # pass
+
+
+def spearman_distance(x):
+    rho, _ = spearmanr(x, axis=1)
+    return 1 - rho
+
+
+def wilcoxon_onesided(x, **kwargs):
+    _, p = wilcoxon(x, **kwargs)
+    if np.median(x) > 0:
+        res = p/2
+    else:
+        res = 1 - p/2
+    return res
 
 
 def predict(clf, x, y, logger=None):
