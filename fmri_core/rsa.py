@@ -1,5 +1,8 @@
+from scipy.stats import wilcoxon, spearmanr
 from scipy.spatial.distance import pdist, squareform
+from .utils import write_to_logger
 import numpy as np
+
 
 # TODO : Add RSA functionality (needs a .fit)
 def covdiag(x, df=None, shrinkage=None, logger=None):
@@ -62,6 +65,7 @@ def rdm(X, square=False, logger=None, **pdistargs):
     :return: pairwise distances between items in X
     """
     # add crossnobis estimator
+<<<<<<< HEAD
     if square:
         r = squareform(pdist(X, **pdistargs))
     else:
@@ -69,3 +73,31 @@ def rdm(X, square=False, logger=None, **pdistargs):
     return r
 
 
+=======
+    write_to_logger("Generating RDM", logger)
+    if "metric" in pdistargs:
+        if pdistargs["metric"] == "spearman":
+            r = squareform(spearman_distance(X), checks=False)
+        else:
+            r = pdist(X, **pdistargs)
+    else:
+        r = pdist(X, **pdistargs)
+
+    if square:
+        r = squareform(r)
+    return r
+
+
+def spearman_distance(x):
+    rho, _ = spearmanr(x, axis=1)
+    return 1 - rho
+
+
+def wilcoxon_onesided(x, **kwargs):
+    _, p = wilcoxon(x, **kwargs)
+    if np.median(x) > 0:
+        res = p/2
+    else:
+        res = 1 - p/2
+    return res
+>>>>>>> 9624d78b21d24aae01a376693a18a88a8db966fd

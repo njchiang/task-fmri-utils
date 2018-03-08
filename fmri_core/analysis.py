@@ -1,5 +1,6 @@
 from .utils import write_to_logger, mask_img, data_to_img
-from .rsa import rdm
+from .rsa import rdm, wilcoxon_onesided
+
 import numpy as np
 from nilearn.input_data import NiftiMasker
 from scipy.signal import savgol_filter
