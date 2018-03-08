@@ -42,7 +42,7 @@ def plot_rdm(rdm, rank=True, scale=True, ax=None, cb=True, **plot_args):
     # TODO : fix error handling
     if rdm.ndim > 1:
         if allclose(rdm, rdm.T):
-            rdm = squareform(rdm)  # transform to vector if square
+            rdm = squareform(rdm, checks=False)  # transform to vector if square
 
     if rank:
         rdm = rankdata(rdm)
