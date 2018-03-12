@@ -65,15 +65,6 @@ def rdm(X, square=False, logger=None, **pdistargs):
     :return: pairwise distances between items in X
     """
     # add crossnobis estimator
-<<<<<<< HEAD
-    if square:
-        r = squareform(pdist(X, **pdistargs))
-    else:
-        r = pdist(X, **pdistargs)
-    return r
-
-
-=======
     write_to_logger("Generating RDM", logger)
     if "metric" in pdistargs:
         if pdistargs["metric"] == "spearman":
@@ -100,4 +91,3 @@ def wilcoxon_onesided(x, **kwargs):
     else:
         res = 1 - p/2
     return res
->>>>>>> 9624d78b21d24aae01a376693a18a88a8db966fd
