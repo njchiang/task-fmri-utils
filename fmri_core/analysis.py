@@ -86,7 +86,7 @@ def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
     dm = make_dmtx(frametimes, paradigm, **design_kwargs)
     if constant is False:
         dm.matrix = np.delete(dm.matrix, dm.names.index("constant"), axis=1)
-        dm.names = dm.names.remove("constant")
+        dm.names.remove("constant")
     return dm
 
 
