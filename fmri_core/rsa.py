@@ -5,13 +5,56 @@ from .utils import write_to_logger
 import numpy as np
 
 
+def add_diag(x, v):
+    """
+    memory efficient way to add a diagonal matrix with a square matrix
+    :param x: square matrix to be appended
+    :param v: vector of diagonal elements
+    :return:
+    """
+    for i in range(len(v)):
+        x[i,i] += v[i]
+    return x
+
+
+def sumproduct(x1, x2):
+    """
+    memory efficient way to multiply two matrices and add the result
+    :param x1:
+    :param x2:
+    :return:
+    """
+    if x1.shape[1] != x2.shape[0]:
+        return None
+    try:
+        total = 0
+        for r in range(x1.shape[0]):
+            total += np.dot(x1[r], x2).sum()
+    # still use dot product, just with stacked vectors...
+    except MemoryError:
+        total = 0
+        # slow
+        for i in range(x1.shape[0]):
+            for j in range(x2.shape[1]):
+                total += sum(x1[i] * x2[:, j])
+
+    return total
+
+
+def ssq(x):
+    total = 0
+    for i in range(x.shape[0]):
+        total += (x[i]**2).sum()
+    return total
+
+
 # TODO : Add RSA functionality (needs a .fit)
 def shrink_cov(x, df=None, shrinkage=None, logger=None):
     """
     Regularize estimate of covariance matrix according to optimal shrinkage
     method Ledoit& Wolf (2005), translated for covdiag.m (rsatoolbox- MATLAB)
     :param x: T obs by p random variables
-    :param df: degrees of freedomc
+    :param df: degrees of freedom
     :param shrinkage: shrinkage factor
     :return: sigma, invertible covariance matrix estimator
              shrink: shrinkage factor
@@ -21,20 +64,32 @@ def shrink_cov(x, df=None, shrinkage=None, logger=None):
     t, n = x.shape
     if df is None:
         df = t-1
-    X = x - x.mean(0)
-    sampleCov = 1/df * np.dot(X.T, X)
-    prior = np.diag(np.diag(sampleCov))  # diagonal of sampleCov
+    x = x - x.mean(0)
+    sampleCov = 1/df * np.dot(x.T, x)
+    prior_diag = np.diag(sampleCov)  # diagonal of sampleCov
     if shrinkage is None:
-        d = 1 / n * np.linalg.norm(sampleCov-prior, ord='fro')**2
-        y = X**2
-        r2 = 1 / n / df**2 * np.sum(np.dot(y.T, y)) - \
-             1 / n / df * np.sum(sampleCov**2)
+        try:
+            d = 1 / n * np.linalg.norm(sampleCov-np.diag(prior_diag), ord='fro')**2
+            r2 = 1 / n / df**2 * np.sum(np.dot(x.T**2, x)) - \
+                 1 / n / df * np.sum(sampleCov**2)
+        except MemoryError:
+            write_to_logger("Low memory option", logger)
+            d = 1 / n * np.linalg.norm(add_diag(sampleCov, -prior_diag), ord='fro')**2
+            write_to_logger("d calculated")
+            r2 = 1 / n / df**2 * sumproduct(x.T**2, x)
+
+            write_to_logger("r2 part 1")
+
+            r2 -= 1 / n / df * ssq(sampleCov)
+            write_to_logger("r2 part 2")
         shrink = max(0, min(1, r2 / d))
     else:
         shrink = 0
 
-    sigma = shrink * prior + (1-shrink) * sampleCov
-    return sigma, shrink, sampleCov
+    # sigma = shrink * prior + (1-shrink) * sampleCov
+    # sigma = add_diag((1-shrink) * sampleCov, shrink*prior_diag)
+    # return sigma, shrink, sampleCov
+    return add_diag((1-shrink) * sampleCov, shrink*prior_diag), shrink, prior_diag
 
 
 # DON'T NEED ANY OF THIS IF SIGMA and INV_SIGMA are known, can use pdist(..., VI=INV_SIGMA)
@@ -51,7 +106,7 @@ def noise_normalize_beta(betas, resids, df=None, shrinkage=None, logger=None):
     """
     # find resids, WHAT ARE DEGREES OF FREEDOM
     # TODO : add other measures from noiseNormalizeBeta
-    vox_cov_reg, shrink, vox_cov = shrink_cov(resids, df, shrinkage=shrinkage, logger=logger)
+    vox_cov_reg, shrink, _ = shrink_cov(resids, df, shrinkage=shrinkage, logger=logger)
     whiten_filter = whitening_filter(vox_cov_reg)
     whitened_betas = np.dot(betas, whiten_filter)  # estimated true activity patterns
     return whitened_betas
@@ -136,3 +191,7 @@ def wilcoxon_onesided(x, **kwargs):
     else:
         res = 1 - p/2
     return res
+
+
+def searchlightRSA():
+    pass
