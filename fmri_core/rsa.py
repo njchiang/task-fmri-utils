@@ -1,4 +1,4 @@
-from scipy.stats import wilcoxon, spearmanr, rankdata
+from scipy.stats import wilcoxon, spearmanr
 from scipy.spatial.distance import pdist, squareform
 from sklearn.model_selection import LeaveOneOut
 from .utils import write_to_logger
@@ -13,7 +13,7 @@ def add_diag(x, v):
     :return:
     """
     for i in range(len(v)):
-        x[i,i] += v[i]
+        x[i, i] += v[i]
     return x
 
 
@@ -69,12 +69,14 @@ def shrink_cov(x, df=None, shrinkage=None, logger=None):
     prior_diag = np.diag(sampleCov)  # diagonal of sampleCov
     if shrinkage is None:
         try:
-            d = 1 / n * np.linalg.norm(sampleCov-np.diag(prior_diag), ord='fro')**2
+            d = 1 / n * np.linalg.norm(sampleCov-np.diag(prior_diag),
+                                       ord='fro')**2
             r2 = 1 / n / df**2 * np.sum(np.dot(x.T**2, x)) - \
-                 1 / n / df * np.sum(sampleCov**2)
+                1 / n / df * np.sum(sampleCov**2)
         except MemoryError:
             write_to_logger("Low memory option", logger)
-            d = 1 / n * np.linalg.norm(add_diag(sampleCov, -prior_diag), ord='fro')**2
+            d = 1 / n * np.linalg.norm(add_diag(sampleCov, -prior_diag),
+                                       ord='fro')**2
             write_to_logger("d calculated")
             r2 = 1 / n / df**2 * sumproduct(x.T**2, x)
 
@@ -89,14 +91,17 @@ def shrink_cov(x, df=None, shrinkage=None, logger=None):
     # sigma = shrink * prior + (1-shrink) * sampleCov
     # sigma = add_diag((1-shrink) * sampleCov, shrink*prior_diag)
     # return sigma, shrink, sampleCov
-    return add_diag((1-shrink) * sampleCov, shrink*prior_diag), shrink, prior_diag
+    return add_diag((1-shrink)*sampleCov, shrink*prior_diag), \
+        shrink, prior_diag
 
 
-# DON'T NEED ANY OF THIS IF SIGMA and INV_SIGMA are known, can use pdist(..., VI=INV_SIGMA)
+# DON'T NEED ANY OF THIS IF SIGMA and INV_SIGMA are known,
+# can use pdist(..., VI=INV_SIGMA)
 def noise_normalize_beta(betas, resids, df=None, shrinkage=None, logger=None):
     """
-    "whiten" beta estimates according to residuals. Generally, because there are more features than
-    samples regularization is used to find the covariance matrix (see covdiag above)
+    "whiten" beta estimates according to residuals.
+    Generally, because there are more features than
+    samples regularization is used to find the covariance matrix (see covdiag)
     :param betas: activity patterns ( nBetas (trials) by nVoxels, for example)
     :param resids: residuals (n voxels by nTRs)
     :param df: degrees of freedom. if none, defaults to nTRs- nBetas
@@ -106,9 +111,11 @@ def noise_normalize_beta(betas, resids, df=None, shrinkage=None, logger=None):
     """
     # find resids, WHAT ARE DEGREES OF FREEDOM
     # TODO : add other measures from noiseNormalizeBeta
-    vox_cov_reg, shrink, _ = shrink_cov(resids, df, shrinkage=shrinkage, logger=logger)
+    vox_cov_reg, shrink, _ = shrink_cov(resids, df,
+                                        shrinkage=shrinkage, logger=logger)
     whiten_filter = whitening_filter(vox_cov_reg)
-    whitened_betas = np.dot(betas, whiten_filter)  # estimated true activity patterns
+    whitened_betas = np.dot(betas, whiten_filter)
+    # estimated true activity patterns
     return whitened_betas
 
 
@@ -124,7 +131,8 @@ def whitening_filter(x):
 
 def spearman_noise_bounds(rdms):
     """
-    Calculate upper and lower bounds on spearman correlations using double dipping
+    Calculate upper and lower bounds on spearman correlations
+    using double dipping
     (See Nili et al 2014)
     :param rdms: Stacked RDMs
     :return: (upper bound, lower bound)
@@ -134,7 +142,11 @@ def spearman_noise_bounds(rdms):
     upper = 1 - spearman_distance(np.vstack([mean_rdm, rdms]))[0][0, 1:]
     # lower bound: each subject's correlation with mean of other subjects
     loo = LeaveOneOut()
-    lower = 1 - np.array([spearman_distance(np.vstack([rdms[test], rdms[train].mean(0)]))[0] for train, test in loo.split(rdms)])
+    lower = 1 - \
+        np.array([spearman_distance(np.vstack([rdms[test],
+                                               rdms[train].mean(0)]))[0]
+                  for train, test in loo.split(rdms)
+                  ])
     return np.vstack([upper, lower])
 
 
@@ -170,7 +182,8 @@ def rdm(X, square=False, logger=None, **pdistargs):
 
 def spearman_distance(x):
     """
-    Spearman distance of a matrix. To find distance between two entities, stack them and pass in
+    Spearman distance of a matrix. To find distance between two entities,
+    stack them and pass in
     :param x: entries
     :return: Spearman distance (1 - rho)
     """
