@@ -1,7 +1,9 @@
 from scipy.stats import wilcoxon, spearmanr
 from scipy.spatial.distance import pdist, squareform
 from sklearn.model_selection import LeaveOneOut
-from .utils import write_to_logger
+from .utils import write_to_logger, mask_img, data_to_img
+# from . import searchlight
+
 import numpy as np
 
 
@@ -163,18 +165,21 @@ def rdm(X, square=False, logger=None, **pdistargs):
     p = None
     if "metric" in pdistargs:
         if pdistargs["metric"] == "spearman":
-            r_raw, p = spearman_distance(X)
-            r = squareform(r_raw, checks=False)
+            r, p = spearman_distance(X)
+            if r.shape is not ():
+                r = squareform(r, checks=False)
+                p = squareform(r, checks=False)
         else:
             r = pdist(X, **pdistargs)
     else:
         r = pdist(X, **pdistargs)
 
     if square:
-        r = squareform(r)
+        r = squareform(r, checks=False)
+        if p is not None:
+            p = squareform(p, checks=False)
 
     if p is not None:
-        p = squareform(p, checks=False)
         return r, p
     else:
         return r
@@ -206,5 +211,3 @@ def wilcoxon_onesided(x, **kwargs):
     return res
 
 
-def searchlightRSA():
-    pass

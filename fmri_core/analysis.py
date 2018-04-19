@@ -1,5 +1,6 @@
 from .utils import write_to_logger, mask_img, data_to_img
 from .rsa import rdm, wilcoxon_onesided
+from .searchlight import SearchLight
 
 import numpy as np
 from nilearn.input_data import NiftiMasker
@@ -60,6 +61,8 @@ def sgfilter(logger=None, **sgparams):
 #######################################
 # Analysis
 #######################################
+# TODO : featureized design matrix
+# take trial by trial (beta extraction) matrix and multiply by feature space (in same order)
 def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
                    design_kwargs=None, constant=False, logger=None):
     """
@@ -154,6 +157,29 @@ def searchlight(x, y, m=None, groups=None, cv=None,
     write_to_logger("searchlight params: " + str(searchlight_args))
     sl = decoding.SearchLight(mask_img=m, cv=cv, **searchlight_args)
     sl.fit(x, y, groups)
+    if write:
+        return sl, data_to_img(sl.scores_, x, logger=logger)
+    else:
+        return sl
+
+
+def searchlight_rsa(x, y, m=None, write=False, logger=None, **searchlight_args):
+    """
+    Wrapper to launch searchlight
+    :param x: Data
+    :param y: labels
+    :param m: mask
+    :param groups: group labels
+    :param cv: cross validator
+    :param write: if image for writing is desired or not
+    :param logger:
+    :param searchlight_args:(default) process_mask_img(None),
+                            radius(2mm), estimator(svc),
+                            n_jobs(-1), scoring(none), cv(3fold), verbose(0)
+    :return: trained SL object and SL results
+    """
+    sl = SearchLight(mask_img=m, **searchlight_args)
+    sl.fit(x, y)
     if write:
         return sl, data_to_img(sl.scores_, x, logger=logger)
     else:
