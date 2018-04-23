@@ -124,7 +124,7 @@ def _group_iter_search_light(list_rows, X, y, thread_id, total, verbose=0):
         #                                         **kwargs))
         ### RUN RSA ###
         roi_rdm = rdm(X[:, row])  # set up default distance
-        par_scores[i] = rdm(np.vstack([roi_rdm, y]), metric="spearman")[0]
+        par_scores[i] = 1 - rdm(np.vstack([roi_rdm, y]), metric="spearman")[0]
 
         ###############
 

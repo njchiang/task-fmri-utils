@@ -161,7 +161,8 @@ def rdm(X, square=False, logger=None, **pdistargs):
     :return: pairwise distances between items in X
     """
     # add crossnobis estimator
-    write_to_logger("Generating RDM", logger)
+    if logger is not None:
+        write_to_logger("Generating RDM", logger)
     p = None
     if "metric" in pdistargs:
         if pdistargs["metric"] == "spearman":
