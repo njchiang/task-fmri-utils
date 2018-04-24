@@ -1,5 +1,4 @@
 from .utils import write_to_logger, mask_img, data_to_img
-from .rsa import rdm, wilcoxon_onesided
 from .searchlight import SearchLight
 
 import numpy as np
@@ -62,7 +61,8 @@ def sgfilter(logger=None, **sgparams):
 # Analysis
 #######################################
 # TODO : featureized design matrix
-# take trial by trial (beta extraction) matrix and multiply by feature space (in same order)
+# take trial by trial (beta extraction) matrix and multiply by
+# feature space (in same order)
 def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
                    design_kwargs=None, constant=False, logger=None):
     """
@@ -163,21 +163,24 @@ def searchlight(x, y, m=None, groups=None, cv=None,
         return sl
 
 
-def searchlight_rsa(x, y, m=None, write=False, logger=None, **searchlight_args):
+def searchlight_rsa(x, y, m=None, write=False,
+                    logger=None, **searchlight_args):
     """
     Wrapper to launch searchlight
     :param x: Data
-    :param y: labels
+    :param y: model
     :param m: mask
-    :param groups: group labels
-    :param cv: cross validator
     :param write: if image for writing is desired or not
     :param logger:
     :param searchlight_args:(default) process_mask_img(None),
                             radius(2mm), estimator(svc),
-                            n_jobs(-1), scoring(none), cv(3fold), verbose(0)
+                            n_jobs(-1), verbose(0)
     :return: trained SL object and SL results
     """
+    write_to_logger("starting searchlight... ", logger)
+    if m is None:
+        m = masking.compute_epi_mask(x)
+    write_to_logger("searchlight params: " + str(searchlight_args))
     sl = SearchLight(mask_img=m, **searchlight_args)
     sl.fit(x, y)
     if write:
