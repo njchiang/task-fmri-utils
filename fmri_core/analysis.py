@@ -9,6 +9,7 @@ from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from sklearn.preprocessing import FunctionTransformer
 import sklearn.model_selection as ms
 from nilearn import decoding, masking
+from .rsa import rdm, wilcoxon_onesided
 
 
 #######################################
@@ -108,7 +109,8 @@ def predict(clf, x, y, logger=None):
         y = y[:, np.newaxis]
     if pred.ndim < 2:
         pred = pred[:, np.newaxis]
-    write_to_logger("Predicting", logger)
+    if logger is not None:
+        write_to_logger("Predicting", logger)
     corrs = np.array([np.corrcoef(y[:, i], pred[:, i])[0, 1]
                      for i in range(pred.shape[1])])
     return corrs
