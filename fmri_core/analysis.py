@@ -9,6 +9,7 @@ from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from sklearn.preprocessing import FunctionTransformer
 import sklearn.model_selection as ms
 from nilearn import decoding, masking
+from .cross_searchlight import SearchLight
 from .rsa import rdm, wilcoxon_onesided
 
 
@@ -157,7 +158,8 @@ def searchlight(x, y, m=None, groups=None, cv=None,
     if m is None:
         m = masking.compute_epi_mask(x)
     write_to_logger("searchlight params: " + str(searchlight_args))
-    sl = decoding.SearchLight(mask_img=m, cv=cv, **searchlight_args)
+
+    sl = SearchLight(mask_img=m, cv=cv, **searchlight_args)
     sl.fit(x, y, groups)
     if write:
         return sl, data_to_img(sl.scores_, x, logger=logger)
