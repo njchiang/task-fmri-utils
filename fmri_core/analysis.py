@@ -1,15 +1,16 @@
 from .utils import write_to_logger, mask_img, data_to_img
+from .searchlight import SearchLight
 
 import numpy as np
 from nilearn.input_data import NiftiMasker
-from scipy.spatial.distance import pdist, squareform
 from scipy.signal import savgol_filter
 from nipy.modalities.fmri.design_matrix import make_dmtx
 from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from sklearn.preprocessing import FunctionTransformer
 import sklearn.model_selection as ms
 from nilearn import decoding, masking
-from scipy.stats import wilcoxon, spearmanr
+from .cross_searchlight import SearchLight
+from .rsa import rdm, wilcoxon_onesided
 
 
 #######################################
@@ -61,6 +62,9 @@ def sgfilter(logger=None, **sgparams):
 #######################################
 # Analysis
 #######################################
+# TODO : featureized design matrix
+# take trial by trial (beta extraction) matrix and multiply by
+# feature space (in same order)
 def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
                    design_kwargs=None, constant=False, logger=None):
     """
@@ -87,97 +91,8 @@ def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
     dm = make_dmtx(frametimes, paradigm, **design_kwargs)
     if constant is False:
         dm.matrix = np.delete(dm.matrix, dm.names.index("constant"), axis=1)
-        dm.names = dm.names.remove("constant")
+        dm.names.remove("constant")
     return dm
-
-
-# TODO : Add RSA functionality (needs a .fit)
-def covdiag(x, df=None, shrinkage=None, logger=None):
-    """
-    Regularize estimate of covariance matrix according to optimal shrinkage
-    method Ledoit& Wolf (2005), translated for covdiag.m (rsatoolbox- MATLAB)
-    :param x: T obs by p random variables
-    :param df: degrees of freedomc
-    :param shrinkage: shrinkage factor
-    :return: sigma, invertible covariance matrix estimator
-             shrink: shrinkage factor
-             sample: sample covariance (un-regularized)
-    """
-    # TODO : clean this code up
-    t, n = x.shape
-    if df is None:
-        df = t-1
-    X = x - x.mean(0)
-    sampleCov = 1/df * np.dot(X.T, X)
-    prior = np.diag(np.diag(sampleCov))  # diagonal of sampleCov
-    if shrinkage is None:
-        d = 1 / n * np.linalg.norm(sampleCov-prior, ord='fro')**2
-        y = X**2
-        r2 = 1 / n / df**2 * np.sum(np.dot(y.T, y)) - \
-             1 / n / df * np.sum(sampleCov**2)
-        shrink = max(0, min(1, r2 / d))
-    else:
-        shrink = shrinkage
-
-    sigma = shrink * prior + (1-shrink) * sampleCov
-    return sigma, shrink, sampleCov
-
-
-def noise_normalize_beta(betas, resids, df, shrinkage=None, logger=None):
-    # find resids
-    # TODO : add other measures from noiseNormalizeBeta
-    vox_cov_reg, shrink, vox_cov = covdiag(resids, df, shrinkage=shrinkage)
-    V, L = np.linalg.eig(vox_cov_reg)
-    sq = np.dot(V, V.T/np.sqrt(L))
-    uhat = np.dot(betas, sq)  # estimated true activity patterns
-    # resMS =
-
-
-def indicator_matrix(logger=None):
-    pass
-
-
-def crossnobis(betas, resid, logger=None):
-    # each iteration: find inverse of X and apply to left out iter
-
-    pass
-
-
-def rdm(X, square=False, logger=None, **pdistargs):
-    """
-    Calculate distance matrix
-    :param X: data
-    :param square: shape of output (square or vec)
-    :param pdistargs: notably: include "metric"
-    :return: pairwise distances between items in X
-    """
-    # add crossnobis estimator
-    write_to_logger("Generating RDM", logger)
-    if "metric" in pdistargs:
-        if pdistargs["metric"] == "spearman":
-            r = squareform(spearman_distance(X), checks=False)
-        else:
-            r = pdist(X, **pdistargs)
-    else:
-        r = pdist(X, **pdistargs)
-
-    if square:
-        r = squareform(r)
-    return r
-
-
-def spearman_distance(x):
-    rho, _ = spearmanr(x, axis=1)
-    return 1 - rho
-
-
-def wilcoxon_onesided(x, **kwargs):
-    _, p = wilcoxon(x, **kwargs)
-    if np.median(x) > 0:
-        res = p/2
-    else:
-        res = 1 - p/2
-    return res
 
 
 def predict(clf, x, y, logger=None):
@@ -195,7 +110,8 @@ def predict(clf, x, y, logger=None):
         y = y[:, np.newaxis]
     if pred.ndim < 2:
         pred = pred[:, np.newaxis]
-    write_to_logger("Predicting", logger)
+    if logger is not None:
+        write_to_logger("Predicting", logger)
     corrs = np.array([np.corrcoef(y[:, i], pred[:, i])[0, 1]
                      for i in range(pred.shape[1])])
     return corrs
@@ -242,8 +158,35 @@ def searchlight(x, y, m=None, groups=None, cv=None,
     if m is None:
         m = masking.compute_epi_mask(x)
     write_to_logger("searchlight params: " + str(searchlight_args))
-    sl = decoding.SearchLight(mask_img=m, cv=cv, **searchlight_args)
+
+    sl = SearchLight(mask_img=m, cv=cv, **searchlight_args)
     sl.fit(x, y, groups)
+    if write:
+        return sl, data_to_img(sl.scores_, x, logger=logger)
+    else:
+        return sl
+
+
+def searchlight_rsa(x, y, m=None, write=False,
+                    logger=None, **searchlight_args):
+    """
+    Wrapper to launch searchlight
+    :param x: Data
+    :param y: model
+    :param m: mask
+    :param write: if image for writing is desired or not
+    :param logger:
+    :param searchlight_args:(default) process_mask_img(None),
+                            radius(2mm), estimator(svc),
+                            n_jobs(-1), verbose(0)
+    :return: trained SL object and SL results
+    """
+    write_to_logger("starting searchlight... ", logger)
+    if m is None:
+        m = masking.compute_epi_mask(x)
+    write_to_logger("searchlight params: " + str(searchlight_args))
+    sl = SearchLight(mask_img=m, **searchlight_args)
+    sl.fit(x, y)
     if write:
         return sl, data_to_img(sl.scores_, x, logger=logger)
     else:
