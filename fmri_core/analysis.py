@@ -3,6 +3,7 @@ from .rsa_searchlight import SearchLight as RSASearchlight
 from .cross_searchlight import SearchLight
 
 import numpy as np
+from datetime import datetime
 from nilearn.input_data import NiftiMasker
 from scipy.signal import savgol_filter
 from nipy.modalities.fmri.design_matrix import make_dmtx
@@ -43,7 +44,7 @@ def op_by_label(d, l, op=None, logger=None):
     :param op: operation to carry (scikit learn)
     :return: processed data
     """
-    write_to_logger("applying operation by label", logger)
+    write_to_logger("applying operation by label at " + str(datetime.now()), logger)
     if op is None:
         from sklearn.preprocessing import StandardScaler
         op = StandardScaler()
@@ -51,6 +52,8 @@ def op_by_label(d, l, op=None, logger=None):
                          for i in l.unique()], axis=0)
     lOrder = np.concatenate([l.index[l.values == i]
                             for i in l.unique()], axis=0)
+    write_to_logger("Ended at " + str(datetime.now()), logger=logger)
+
     return opD[lOrder]  # I really hope this works...
 
 
@@ -83,7 +86,7 @@ def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
     if "drift_model" not in design_kwargs.keys():
         design_kwargs["drift_model"] = "blank"
 
-    write_to_logger("Creating design matrix...", logger)
+    write_to_logger("Creating design matrix at " + str(datetime.now()), logger)
     paradigm = BlockParadigm(con_id=cond_ids,
                              onset=onsets,
                              duration=durations,
@@ -92,10 +95,13 @@ def make_designmat(frametimes, cond_ids, onsets, durations, amplitudes=None,
     if constant is False:
         dm.matrix = np.delete(dm.matrix, dm.names.index("constant"), axis=1)
         dm.names.remove("constant")
+
+    write_to_logger("Ended at " + str(datetime.now()), logger=logger)
+
     return dm
 
 
-def predict(clf, x, y, logger=None):
+def predict(clf, x, y, log=False, logger=None):
     """
     Encoding prediction. Assumes data is pre-split into train and test
     For now, just uses Ridge regression. Later will use cross-validated Ridge.
@@ -110,14 +116,19 @@ def predict(clf, x, y, logger=None):
         y = y[:, np.newaxis]
     if pred.ndim < 2:
         pred = pred[:, np.newaxis]
-    if logger is not None:
-        write_to_logger("Predicting", logger)
+
+    if log:
+        write_to_logger("Predicting at " + str(datetime.now()), logger)
     corrs = np.array([np.corrcoef(y[:, i], pred[:, i])[0, 1]
                      for i in range(pred.shape[1])])
+
+    if log:
+        write_to_logger("Ended at " + str(datetime.now()), logger=logger)
+
     return corrs
 
 
-def roi(x, y, clf, m=None, cv=None, **roiargs):
+def roi(x, y, clf, m=None, cv=None, logger=None, **roiargs):
     """
     Cross validation on a masked roi. Need to decide if this
     function does preprocessing or not
@@ -132,7 +143,7 @@ def roi(x, y, clf, m=None, cv=None, **roiargs):
     :return: CV results
     """
     if m is not None:
-        X = mask_img(x, m)
+        X = mask_img(x, m, logger=logger)
     else:
         X = x
     return ms.cross_val_score(estimator=clf, X=X, y=y, cv=cv, **roiargs)
@@ -162,10 +173,12 @@ def searchlight(x, y, m=None, groups=None, cv=None,
 
     sl = SearchLight(mask_img=m, cv=cv, **searchlight_args)
     sl.fit(x, y, groups)
+    write_to_logger("Searchlight ended at " + str(datetime.now()), logger=logger)
     if write:
         return sl, data_to_img(sl.scores_, x, logger=logger)
     else:
         return sl
+
 
 
 def searchlight_rsa(x, y, m=None, write=False,
@@ -188,6 +201,8 @@ def searchlight_rsa(x, y, m=None, write=False,
     write_to_logger("searchlight params: " + str(searchlight_args))
     sl = RSASearchlight(mask_img=m, **searchlight_args)
     sl.fit(x, y)
+    write_to_logger("Searchlight ended at " + str(datetime.now()), logger=logger)
+
     if write:
         return sl, data_to_img(sl.scores_, x, logger=logger)
     else:
