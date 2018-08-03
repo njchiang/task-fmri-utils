@@ -157,7 +157,8 @@ def searchlight(x, y, m=None, groups=None, cv=None,
     write_to_logger("starting searchlight... ", logger)
     if m is None:
         m = masking.compute_epi_mask(x)
-    write_to_logger("searchlight params: " + str(searchlight_args))
+    searchlight_args["process_mask_img"] = m.get_data().astype(bool)
+    write_to_logger("searchlight params: " + str(searchlight_args), logger=logger)
 
     sl = SearchLight(mask_img=m, cv=cv, **searchlight_args)
     sl.fit(x, y, groups)

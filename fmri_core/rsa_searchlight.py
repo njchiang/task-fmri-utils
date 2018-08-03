@@ -33,7 +33,7 @@ from .rsa import rdm
 ESTIMATOR_CATALOG = dict(svc=svm.LinearSVC, svr=svm.SVR)
 
 
-def search_light(X, y, A, n_jobs=-1, verbose=0):
+def search_light(X, y, A, metric="spearman", n_jobs=-1, verbose=0):
     """Function for computing a search_light
     Parameters
     ----------
@@ -44,6 +44,8 @@ def search_light(X, y, A, n_jobs=-1, verbose=0):
     A : scipy sparse matrix.
         adjacency matrix. Defines for each feature the neigbhoring features
         following a given structure of the data.
+    metric : basestring
+        distance method for RSA
     n_jobs : int, optional
         The number of CPUs to use to do the computation. -1 means
         'all CPUs'.
@@ -58,7 +60,7 @@ def search_light(X, y, A, n_jobs=-1, verbose=0):
     scores = Parallel(n_jobs=n_jobs, verbose=verbose)(
         delayed(_group_iter_search_light)(
             A.rows[list_i],
-            X, y, thread_id + 1, A.shape[0], verbose)
+            X, y, metric, thread_id + 1, A.shape[0], verbose)
         for thread_id, list_i in enumerate(group_iter))
     return np.concatenate(scores)
 
@@ -87,7 +89,7 @@ class GroupIterator(object):
             yield list_i
 
 
-def _group_iter_search_light(list_rows, X, y, thread_id, total, verbose=0):
+def _group_iter_search_light(list_rows, X, y, metric, thread_id, total, verbose=0):
     """Function for grouped iterations of search_light
     Parameters
     -----------
@@ -98,9 +100,8 @@ def _group_iter_search_light(list_rows, X, y, thread_id, total, verbose=0):
         data to fit.
     y : array-like
         target variable to predict.
-    groups : array-like, optional
-        group label for each sample for cross validation.
-        NOTE: will have no effect for scikit learn < 0.18
+    metric : basestring
+        distance metric for RSA
     thread_id : int
         process id, used for display.
     total : int
@@ -116,6 +117,7 @@ def _group_iter_search_light(list_rows, X, y, thread_id, total, verbose=0):
     t0 = time.time()
     for i, row in enumerate(list_rows):
         kwargs = dict()
+        kwargs["metric"] = metric
         # X: activity patterns
         # y: model rdm
 
@@ -124,7 +126,7 @@ def _group_iter_search_light(list_rows, X, y, thread_id, total, verbose=0):
         #                                         **kwargs))
         ### RUN RSA ###
         roi_rdm = rdm(X[:, row])  # set up default distance
-        par_scores[i] = 1 - rdm(np.vstack([roi_rdm, y]), metric="spearman")[0]
+        par_scores[i] = 1 - rdm(np.vstack([roi_rdm, y]), **kwargs)[0]
 
         ###############
 
@@ -238,7 +240,15 @@ class SearchLight(BaseEstimator):
             mask_img=self.mask_img)
 
         scores = search_light(X, y, A, self.n_jobs, self.verbose)
-        scores_3D = np.zeros(process_mask.shape)
-        scores_3D[process_mask] = scores
+
+        scores_3D = []
+        for g in range(scores.shape[1]):
+            these_scores = np.zeros(process_mask.shape)
+            these_scores[process_mask] = scores[:, g]
+            scores_3D.append(these_scores)
+        scores_3D = np.stack(scores_3D, -1)
+
+        # scores_3D = np.zeros(process_mask.shape)
+        # scores_3D[process_mask] = scores
         self.scores_ = scores_3D
         return self
