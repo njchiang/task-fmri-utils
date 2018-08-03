@@ -1,5 +1,6 @@
 from .utils import write_to_logger, mask_img, data_to_img
-from .searchlight import SearchLight
+from .rsa_searchlight import SearchLight as RSASearchlight
+from .cross_searchlight import SearchLight
 
 import numpy as np
 from nilearn.input_data import NiftiMasker
@@ -9,7 +10,6 @@ from nipy.modalities.fmri.experimental_paradigm import BlockParadigm
 from sklearn.preprocessing import FunctionTransformer
 import sklearn.model_selection as ms
 from nilearn import decoding, masking
-from .cross_searchlight import SearchLight
 from .rsa import rdm, wilcoxon_onesided
 
 
@@ -185,7 +185,7 @@ def searchlight_rsa(x, y, m=None, write=False,
     if m is None:
         m = masking.compute_epi_mask(x)
     write_to_logger("searchlight params: " + str(searchlight_args))
-    sl = SearchLight(mask_img=m, **searchlight_args)
+    sl = RSASearchlight(mask_img=m, **searchlight_args)
     sl.fit(x, y)
     if write:
         return sl, data_to_img(sl.scores_, x, logger=logger)
