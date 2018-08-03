@@ -154,7 +154,7 @@ def searchlight(x, y, m=None, groups=None, cv=None,
                             n_jobs(-1), scoring(none), cv(3fold), verbose(0)
     :return: trained SL object and SL results
     """
-    write_to_logger("starting searchlight... ", logger)
+    write_to_logger("starting searchlight... ", logger=logger)
     if m is None:
         m = masking.compute_epi_mask(x)
     searchlight_args["process_mask_img"] = m.get_data().astype(bool)
