@@ -165,7 +165,7 @@ def searchlight(x, y, m=None, groups=None, cv=None,
                             n_jobs(-1), scoring(none), cv(3fold), verbose(0)
     :return: trained SL object and SL results
     """
-    write_to_logger("starting searchlight... ", logger=logger)
+    write_to_logger("starting searchlight at " + str(datetime.now()), logger=logger)
     if m is None:
         m = masking.compute_epi_mask(x)
     searchlight_args["process_mask_img"] = m
@@ -195,7 +195,7 @@ def searchlight_rsa(x, y, m=None, write=False,
                             n_jobs(-1), verbose(0)
     :return: trained SL object and SL results
     """
-    write_to_logger("starting searchlight... ", logger)
+    write_to_logger("starting searchlight at " + str(datetime.now()), logger=logger)
     if m is None:
         m = masking.compute_epi_mask(x)
     write_to_logger("searchlight params: " + str(searchlight_args))
