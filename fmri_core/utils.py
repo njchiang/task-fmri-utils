@@ -124,6 +124,17 @@ def load_img(*path, logger=None):
     return image.load_img(bs, dtype=np.float64)
 
 
+def concat_imgs(imgs, logger=None):
+    """
+    Simple wrapper for concat_imgs
+    :param imgs: list of nifti images or filenames
+    :param logger: logfile ID
+    :return: Nifti1Image
+    """
+    write_to_logger("Concatenating {} images".format(len(imgs)), logger)
+    return image.concat_imgs(imgs, dtype=np.float64)
+
+
 def load_labels(*args, logger=None, **pdargs):
     """
     Simple wrapper using Pandas to load label files
@@ -166,12 +177,13 @@ def mask_img(im, mask=None, logger=None):
     :param logger: logger ID
     :return: masked image
     """
-    if isinstance(im, str):
-        write_to_logger("Masking " + im, logger)
-        return masking.apply_mask(im, mask, dtype=np.float64)
-    else:
-        write_to_logger("Masking file")
-        return masking._apply_mask_fmri(im, mask, dtype=np.float64)
+    # solved as of nilearn 2.3
+    # if isinstance(im, str):
+    write_to_logger("Applying mask", logger)
+    return masking.apply_mask(im, mask, dtype=np.float64)
+    # else:
+    #     write_to_logger("Masking file")
+    #     return masking._apply_mask_fmri(im, mask, dtype=np.float64)
 
 
 def data_to_img(d, img, copy_header=False, logger=None):
