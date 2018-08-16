@@ -37,19 +37,20 @@ with tf.Session() as sess:
 
 # fixed architecture net
 class fMRIConvNet(object):
-    def __init__(self, params, n_classes, input_size, learning_rate=0.001, keep_prob=0.5):
+    def __init__(self, params, n_classes, input_size, l2=True, learning_rate=0.001, keep_prob=0.5):
         self.n_classes = n_classes
         # pad up to make sure everything will be contained
         self.input_size = input_size
-
+        self.l2 = l2
         self.learning_rate = learning_rate
         self.keep_prob = keep_prob
-        for p in params:
+        self.params = params.copy()
+
+        for p in self.params:
             # if p["kernel_size"] is None:
             #     p["kernel_size"] = calculate_fc_kernel(self.input_size, params)
             if "logit" in p["name"] and p["filters"] is None:
                 p["filters"] = self.n_classes
-        self.params = params
 
     def _parse_param(self, p, inputs):
         # someday this will be awesome
@@ -98,12 +99,13 @@ class fMRIConvNet(object):
         )
 
     def _build_loss(self, logits, targets):
-        return tf.reduce_mean(
+        loss = tf.reduce_mean(
             tf.nn.softmax_cross_entropy_with_logits_v2(
                 logits=logits,
                 labels=targets
             )
         )
+        return loss
 
     def _build_optimizer(self, loss, learning_rate):
         train_op = tf.train.AdamOptimizer(learning_rate)
@@ -115,6 +117,8 @@ class fMRIConvNet(object):
             self._standalone_placeholders(self.input_size, self.n_classes)
         else:
             self.inputs, self.targets = inputs, targets
+
+        # if train_mode
         # for p in self.params:
         #     self._parse_param(p)
         a = [tf.expand_dims(self.inputs, -1)]
@@ -125,13 +129,14 @@ class fMRIConvNet(object):
         self.out = tf.nn.softmax(logits, name="predictions")
 
         self.loss = self._build_loss(logits, self.targets)
-
+        if self.l2:
+            self.loss += tf.losses.get_regularization_loss()
         self.optimizer = self._build_optimizer(self.loss, self.learning_rate)
 
-    def build(self, inputs=None, targets=None):
+    def build(self, inputs=None, targets=None, train_mode=True):
         self._build(inputs, targets)
 
-    def train(self):
+    def train(self, sess, x, y):
         pass
 
     def eval(self, sess, x, y):
