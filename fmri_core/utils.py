@@ -211,6 +211,13 @@ def unmask_img(d, mask, logger=None):
     return masking.unmask(d, mask)
 
 
+def clip_brain(mask):
+    """
+    Finds the min and max indices on each axis of the mask
+    :param mask: 3d image
+    :return: indices (list of tuples)
+    """
+    return [(d.min(), d.max()) for d in np.where(mask > 0)]
 #######################################
 # Computation
 #######################################
