@@ -128,7 +128,8 @@ class fMRIConvNet(object):
             kernel_size=layer_params["kernel_size"],
             padding=layer_params["padding"],
             name=layer_params["name"],
-            activation=tf.nn.relu
+            initializer=tf.glorot_uniform_initializer,
+            activation=tf.nn.leaky_relu
         )
         return layer
 
@@ -139,6 +140,7 @@ class fMRIConvNet(object):
             kernel_size=layer_params["kernel_size"],
             padding=layer_params["padding"],
             name=layer_params["name"],
+            initializer=tf.glorot_uniform_initializer,
             activation=None
         )
 
