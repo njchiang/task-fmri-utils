@@ -65,13 +65,19 @@ class fMRIConvNet(object):
         op = p["name"].split("_")[0]
         with tf.variable_scope(p["name"]):
             if op == "conv":
-                return self._add_conv_relu_layer(p, inputs)
+                return self._add_conv_layer(p, inputs)
             elif op == "maxpool":
                 return self._add_maxpool(p, inputs)
             elif op == "logit":
                 return self._add_conv_layer(p, inputs)
             elif op == "drop":
                 return self._add_dropout(p, inputs)
+            elif op == "relu":
+                return self._add_relu(p, inputs)
+            elif op == "leaky":
+                return self._add_leaky_relu(p, inputs)
+            elif op == "batchnorm":
+                return self._add_batchnorm(p, inputs)
 
     def _add_dropout(self, layer_params, inputs):
         return tf.layers.dropout(
@@ -118,29 +124,27 @@ class fMRIConvNet(object):
             self.targets = tf.placeholder(tf.float32, [None, n_classes], name="targets")
         return self.inputs, self.targets
 
-    def _add_conv_relu_layer(self, layer_params, inputs):
-        if layer_params["kernel_size"] is None:
-            layer_params["kernel_size"] = inputs.get_shape().as_list()[1:4]
+    def _add_relu(self, layer_params, inputs):
+        return tf.nn.relu(inputs, name=layer_params["name"])
 
-        layer = tf.layers.conv3d(
-            inputs=inputs,
-            filters=layer_params["filters"],
-            kernel_size=layer_params["kernel_size"],
-            padding=layer_params["padding"],
-            name=layer_params["name"],
-            initializer=tf.glorot_uniform_initializer,
-            activation=tf.nn.leaky_relu
+    def _add_batchnorm(self, layer_params, inputs):
+        return tf.layers.batch_normalization(
+            inputs, **layer_params
         )
-        return layer
+
+    def _add_leaky_relu(self, layer_params, inputs):
+        return tf.nn.leaky_relu(inputs, name=layer_params["name"])
 
     def _add_conv_layer(self, layer_params, inputs):
+        if layer_params["kernel_size"] is None:
+            layer_params["kernel_size"] = inputs.get_shape().as_list()[1:4]
         return tf.layers.conv3d(
             inputs=inputs,
             filters=layer_params["filters"],
             kernel_size=layer_params["kernel_size"],
             padding=layer_params["padding"],
             name=layer_params["name"],
-            initializer=tf.glorot_uniform_initializer,
+            kernel_initializer=tf.glorot_uniform_initializer(),
             activation=None
         )
 
