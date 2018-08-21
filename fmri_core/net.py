@@ -145,7 +145,8 @@ class fMRIConvNet(object):
             padding=layer_params["padding"],
             name=layer_params["name"],
             kernel_initializer=tf.glorot_uniform_initializer(),
-            activation=None
+            activation=None,
+            use_bias=layer_params["use_bias"]
         )
 
     def _add_maxpool(self, layer_params, inputs):
