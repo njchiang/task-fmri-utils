@@ -135,6 +135,18 @@ def concat_imgs(imgs, logger=None):
     return image.concat_imgs(imgs, dtype=np.float64)
 
 
+def index_img(imgs, index, logger=None):
+    """
+    Simple wrapper for index_img
+    :param imgs:
+    :param index:
+    :param logger:
+    :return:
+    """
+    write_to_logger("Slicing image", logger)
+    return image.index_img(imgs, index)
+
+
 def load_labels(*args, logger=None, **pdargs):
     """
     Simple wrapper using Pandas to load label files
