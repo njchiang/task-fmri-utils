@@ -40,7 +40,7 @@ def plot_masked(mat, mask, **kwargs):
 def plot_rdm(rdm, rank=True, scale=True, ax=None, cb=True, **plot_args):
     # for now, can only pass in a vector or square matrix (allclose might break).
     # TODO : fix error handling
-    if rdm.ndim > 1:
+    if rdm.ndim > 1 and rdm.shape[0] == rdm.shape[1]:
         if allclose(rdm, rdm.T):
             rdm = squareform(rdm, checks=False)  # transform to vector if square
 

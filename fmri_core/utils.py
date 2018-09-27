@@ -211,6 +211,18 @@ def data_to_img(d, img, copy_header=False, logger=None):
     return image.new_img_like(image.mean_img(img), d, copy_header=copy_header)
 
 
+def center_img(img, logger=None):
+    """
+
+    :param img:
+    :param logger:
+    :return:
+    """
+    write_to_logger("centering image", logger)
+    return image.math_img("img - np.mean(img, axis=-1, keepdims=True)",
+                          img=img)
+
+
 def unmask_img(d, mask, logger=None):
     """
     Unmasks matrix d according to mask
