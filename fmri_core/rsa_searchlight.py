@@ -1,4 +1,5 @@
 """
+TODO : merge RSA and cross earchlights via refactor
 The searchlight is a widely used approach for the study of the
 fine-grained patterns of information in fMRI analysis, in which
 multivariate statistical relationships are iteratively tested in the
@@ -62,7 +63,7 @@ def search_light(X, y, A, metric="spearman", n_jobs=-1, verbose=0):
             A.rows[list_i],
             X, y, metric, thread_id + 1, A.shape[0], verbose)
         for thread_id, list_i in enumerate(group_iter))
-    return np.concatenate(scores)
+    return np.concatenate(scores, axis=0)
 
 
 class GroupIterator(object):
@@ -113,11 +114,13 @@ def _group_iter_search_light(list_rows, X, y, metric, thread_id, total, verbose=
     par_scores : numpy.ndarray
         score for each voxel. dtype: float64.
     """
-    par_scores = np.zeros(len(list_rows))
+    if y.ndim > 1:
+        n_models = y.shape[0]
+        par_scores = np.zeros([len(list_rows), n_models])
+    else:
+        par_scores = np.zeros(len(list_rows))
     t0 = time.time()
     for i, row in enumerate(list_rows):
-        kwargs = dict()
-        kwargs["metric"] = metric
         # X: activity patterns
         # y: model rdm
 
@@ -126,7 +129,12 @@ def _group_iter_search_light(list_rows, X, y, metric, thread_id, total, verbose=
         #                                         **kwargs))
         ### RUN RSA ###
         roi_rdm = rdm(X[:, row])  # set up default distance
-        par_scores[i] = 1 - rdm(np.vstack([roi_rdm, y]), **kwargs)[0]
+        if y.shape[0] > 1:
+            par_scores[i] = 1 - rdm(np.vstack([roi_rdm, y]),
+                                    metric=metric)[0][0:n_models]
+        else:
+            par_scores[i] = 1 - rdm(np.vstack([roi_rdm, y]),
+                                    metric=metric)[0]
 
         ###############
 
@@ -195,17 +203,18 @@ class SearchLight(BaseEstimator):
     """
 
     def __init__(self, mask_img, process_mask_img=None, radius=2.,
-                 n_jobs=1, scoring=None, cv=None,
+                 n_jobs=1, rdm_metric="euclidean", metric="spearman",
                  verbose=0):
         self.mask_img = mask_img
+
         self.process_mask_img = process_mask_img
         self.radius = radius
         self.n_jobs = n_jobs
-        self.scoring = scoring
-        self.cv = cv
+        self.rdm_metric = rdm_metric
+        self.metric = metric
         self.verbose = verbose
 
-    def fit(self, imgs, y, groups=None):
+    def fit(self, imgs, y):
         """Fit the searchlight
         Parameters
         ----------
@@ -239,7 +248,8 @@ class SearchLight(BaseEstimator):
             process_mask_coords, imgs, self.radius, True,
             mask_img=self.mask_img)
 
-        scores = search_light(X, y, A, self.n_jobs, self.verbose)
+        scores = search_light(X, y, A, metric=self.metric, n_jobs=self.n_jobs,
+                              verbose=self.verbose)
 
         scores_3D = []
         for g in range(scores.shape[1]):
