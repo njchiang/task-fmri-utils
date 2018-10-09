@@ -58,7 +58,6 @@ def search_light(X, y, A, metric="spearman", rdm_metric="euclidean",
     scores : array-like of shape (number of rows in A)
         search_light scores
     """
-    total, verbose=0
     group_iter = GroupIterator(A.shape[0], n_jobs)
     scores = Parallel(n_jobs=n_jobs, verbose=verbose)(
         delayed(_group_iter_search_light)(
