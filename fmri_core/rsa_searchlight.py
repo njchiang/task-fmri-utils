@@ -34,7 +34,8 @@ from .rsa import rdm
 ESTIMATOR_CATALOG = dict(svc=svm.LinearSVC, svr=svm.SVR)
 
 
-def search_light(X, y, A, metric="spearman", n_jobs=-1, verbose=0):
+def search_light(X, y, A, metric="spearman", rdm_metric="euclidean",
+                 n_jobs=-1, verbose=0):
     """Function for computing a search_light
     Parameters
     ----------
@@ -57,11 +58,14 @@ def search_light(X, y, A, metric="spearman", n_jobs=-1, verbose=0):
     scores : array-like of shape (number of rows in A)
         search_light scores
     """
+    total, verbose=0
     group_iter = GroupIterator(A.shape[0], n_jobs)
     scores = Parallel(n_jobs=n_jobs, verbose=verbose)(
         delayed(_group_iter_search_light)(
-            A.rows[list_i],
-            X, y, metric, thread_id + 1, A.shape[0], verbose)
+            list_rows=A.rows[list_i],
+            X=X, y=y, metric=metric, rdm_metric=rdm_metric,
+            thread_id=thread_id + 1, total=A.shape[0],
+            verbose=verbose)
         for thread_id, list_i in enumerate(group_iter))
     return np.concatenate(scores, axis=0)
 
@@ -90,7 +94,8 @@ class GroupIterator(object):
             yield list_i
 
 
-def _group_iter_search_light(list_rows, X, y, metric, thread_id, total, verbose=0):
+def _group_iter_search_light(list_rows, X, y, metric, rdm_metric, thread_id,
+                             total, verbose=0):
     """Function for grouped iterations of search_light
     Parameters
     -----------
@@ -128,7 +133,8 @@ def _group_iter_search_light(list_rows, X, y, metric, thread_id, total, verbose=
         #                                         y, cv=cv, n_jobs=1,
         #                                         **kwargs))
         ### RUN RSA ###
-        roi_rdm = rdm(X[:, row])  # set up default distance
+        roi_rdm = rdm(X[:, row], metric=rdm_metric)  # set up default
+        # distance
         if y.shape[0] > 1:
             par_scores[i] = 1 - rdm(np.vstack([roi_rdm, y]),
                                     metric=metric)[0][0:n_models]
@@ -248,7 +254,8 @@ class SearchLight(BaseEstimator):
             process_mask_coords, imgs, self.radius, True,
             mask_img=self.mask_img)
 
-        scores = search_light(X, y, A, metric=self.metric, n_jobs=self.n_jobs,
+        scores = search_light(X, y, A, metric=self.metric,
+                              rdm_metric=self.rdm_metric, n_jobs=self.n_jobs,
                               verbose=self.verbose)
 
         scores_3D = []
