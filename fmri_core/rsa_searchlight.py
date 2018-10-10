@@ -136,10 +136,10 @@ def _group_iter_search_light(list_rows, X, y, metric, rdm_metric, thread_id,
         # distance
         if y.shape[0] > 1:
             par_scores[i] = 1 - rdm(np.vstack([roi_rdm, y]).astype(np.float64),
-                                    metric=metric)[0][0:n_models]
+                                    metric=metric, return_p=False)[0:n_models]
         else:
             par_scores[i] = 1 - rdm(np.vstack([roi_rdm, y]).astype(np.float64),
-                                    metric=metric)[0]
+                                    metric=metric, return_p=False)
 
         ###############
 

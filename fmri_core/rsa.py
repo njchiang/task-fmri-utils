@@ -152,7 +152,7 @@ def spearman_noise_bounds(rdms):
     return np.vstack([upper, lower])
 
 
-def rdm(X, square=False, logger=None, **pdistargs):
+def rdm(X, square=False, logger=None, return_p=False, **pdistargs):
     """
     Calculate distance matrix
     :param X: data
@@ -180,7 +180,7 @@ def rdm(X, square=False, logger=None, **pdistargs):
         if p is not None:
             p = squareform(p, checks=False)
 
-    if p is not None:
+    if p is not None and return_p is True:
         return r, p
     else:
         return r
