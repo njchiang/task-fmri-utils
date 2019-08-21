@@ -13,6 +13,11 @@ def plot_anat(anat_img, **kwargs):
     return
 
 
+def plot_glass_brain(stat_img, **kwargs):
+    nplt.plot_glass_brain(stat_img, **kwargs)
+    return
+
+
 def plot_epi(epi_img, **kwargs):
     nplt.plot_epi(epi_img, **kwargs)
     return
