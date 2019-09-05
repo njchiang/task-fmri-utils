@@ -1,6 +1,10 @@
-from scipy.stats import wilcoxon, spearmanr
+from scipy.stats import wilcoxon  # , spearmanr <- this has a bug
 from scipy.spatial.distance import pdist, squareform
 from sklearn.model_selection import LeaveOneOut
+from scipy.stats import mstats_basic
+from scipy.stats import rankdata, distributions
+import numpy as np
+import warnings
 from .utils import write_to_logger, mask_img, data_to_img
 # from . import searchlight
 
@@ -212,3 +216,210 @@ def wilcoxon_onesided(x, **kwargs):
     return res
 
 
+def _chk_asarray(a, axis):
+    if axis is None:
+        a = np.ravel(a)
+        outaxis = 0
+    else:
+        a = np.asarray(a)
+        outaxis = axis
+
+    if a.ndim == 0:
+        a = np.atleast_1d(a)
+
+    return a, outaxis
+
+
+def _chk2_asarray(a, b, axis):
+    if axis is None:
+        a = np.ravel(a)
+        b = np.ravel(b)
+        outaxis = 0
+    else:
+        a = np.asarray(a)
+        b = np.asarray(b)
+        outaxis = axis
+
+    if a.ndim == 0:
+        a = np.atleast_1d(a)
+    if b.ndim == 0:
+        b = np.atleast_1d(b)
+
+    return a, b, outaxis
+
+
+def _contains_nan(a, nan_policy='propagate'):
+    policies = ['propagate', 'raise', 'omit']
+    if nan_policy not in policies:
+        raise ValueError("nan_policy must be one of {%s}" %
+                         ', '.join("'%s'" % s for s in policies))
+    try:
+        # Calling np.sum to avoid creating a huge array into memory
+        # e.g. np.isnan(a).any()
+        with np.errstate(invalid='ignore'):
+            contains_nan = np.isnan(np.sum(a))
+    except TypeError:
+        # This can happen when attempting to sum things which are not
+        # numbers (e.g. as in the function `mode`). Try an alternative method:
+        try:
+            contains_nan = np.nan in set(a.ravel())
+        except TypeError:
+            # Don't know what to do. Fall back to omitting nan values and
+            # issue a warning.
+            contains_nan = False
+            nan_policy = 'omit'
+            warnings.warn("The input array could not be properly checked for nan "
+                          "values. nan values will be ignored.", RuntimeWarning)
+
+    if contains_nan and nan_policy == 'raise':
+        raise ValueError("The input contains nan values")
+
+    return (contains_nan, nan_policy)
+
+
+def spearmanr(a, b=None, axis=0, nan_policy='propagate'):
+    """
+    Calculate a Spearman rank-order correlation coefficient and the p-value
+    to test for non-correlation.
+    The Spearman correlation is a nonparametric measure of the monotonicity
+    of the relationship between two datasets. Unlike the Pearson correlation,
+    the Spearman correlation does not assume that both datasets are normally
+    distributed. Like other correlation coefficients, this one varies
+    between -1 and +1 with 0 implying no correlation. Correlations of -1 or
+    +1 imply an exact monotonic relationship. Positive correlations imply that
+    as x increases, so does y. Negative correlations imply that as x
+    increases, y decreases.
+    The p-value roughly indicates the probability of an uncorrelated system
+    producing datasets that have a Spearman correlation at least as extreme
+    as the one computed from these datasets. The p-values are not entirely
+    reliable but are probably reasonable for datasets larger than 500 or so.
+    Parameters
+    ----------
+    a, b : 1D or 2D array_like, b is optional
+        One or two 1-D or 2-D arrays containing multiple variables and
+        observations. When these are 1-D, each represents a vector of
+        observations of a single variable. For the behavior in the 2-D case,
+        see under ``axis``, below.
+        Both arrays need to have the same length in the ``axis`` dimension.
+    axis : int or None, optional
+        If axis=0 (default), then each column represents a variable, with
+        observations in the rows. If axis=1, the relationship is transposed:
+        each row represents a variable, while the columns contain observations.
+        If axis=None, then both arrays will be raveled.
+    nan_policy : {'propagate', 'raise', 'omit'}, optional
+        Defines how to handle when input contains nan. 'propagate' returns nan,
+        'raise' throws an error, 'omit' performs the calculations ignoring nan
+        values. Default is 'propagate'.
+    Returns
+    -------
+    correlation : float or ndarray (2-D square)
+        Spearman correlation matrix or correlation coefficient (if only 2
+        variables are given as parameters. Correlation matrix is square with
+        length equal to total number of variables (columns or rows) in ``a``
+        and ``b`` combined.
+    pvalue : float
+        The two-sided p-value for a hypothesis test whose null hypothesis is
+        that two sets of data are uncorrelated, has same dimension as rho.
+    References
+    ----------
+    .. [1] Zwillinger, D. and Kokoska, S. (2000). CRC Standard
+       Probability and Statistics Tables and Formulae. Chapman & Hall: New
+       York. 2000.
+       Section  14.7
+    Examples
+    --------
+    >>> from scipy import stats
+    >>> stats.spearmanr([1,2,3,4,5], [5,6,7,8,7])
+    (0.82078268166812329, 0.088587005313543798)
+    >>> np.random.seed(1234321)
+    >>> x2n = np.random.randn(100, 2)
+    >>> y2n = np.random.randn(100, 2)
+    >>> stats.spearmanr(x2n)
+    (0.059969996999699973, 0.55338590803773591)
+    >>> stats.spearmanr(x2n[:,0], x2n[:,1])
+    (0.059969996999699973, 0.55338590803773591)
+    >>> rho, pval = stats.spearmanr(x2n, y2n)
+    >>> rho
+    array([[ 1.        ,  0.05997   ,  0.18569457,  0.06258626],
+           [ 0.05997   ,  1.        ,  0.110003  ,  0.02534653],
+           [ 0.18569457,  0.110003  ,  1.        ,  0.03488749],
+           [ 0.06258626,  0.02534653,  0.03488749,  1.        ]])
+    >>> pval
+    array([[ 0.        ,  0.55338591,  0.06435364,  0.53617935],
+           [ 0.55338591,  0.        ,  0.27592895,  0.80234077],
+           [ 0.06435364,  0.27592895,  0.        ,  0.73039992],
+           [ 0.53617935,  0.80234077,  0.73039992,  0.        ]])
+    >>> rho, pval = stats.spearmanr(x2n.T, y2n.T, axis=1)
+    >>> rho
+    array([[ 1.        ,  0.05997   ,  0.18569457,  0.06258626],
+           [ 0.05997   ,  1.        ,  0.110003  ,  0.02534653],
+           [ 0.18569457,  0.110003  ,  1.        ,  0.03488749],
+           [ 0.06258626,  0.02534653,  0.03488749,  1.        ]])
+    >>> stats.spearmanr(x2n, y2n, axis=None)
+    (0.10816770419260482, 0.1273562188027364)
+    >>> stats.spearmanr(x2n.ravel(), y2n.ravel())
+    (0.10816770419260482, 0.1273562188027364)
+    >>> xint = np.random.randint(10, size=(100, 2))
+    >>> stats.spearmanr(xint)
+    (0.052760927029710199, 0.60213045837062351)
+    """
+    a, axisout = _chk_asarray(a, axis)
+    x = a
+    if a.ndim > 2:
+        raise ValueError("spearmanr only handles 1-D or 2-D arrays")
+
+    if b is None:
+        if a.ndim < 2:
+            raise ValueError("`spearmanr` needs at least 2 variables to compare")
+    else:
+        # Concatenate a and b, so that we now only have to handle the case
+        # of a 2-D `a`.
+        b, _ = _chk_asarray(b, axis)
+        if axisout == 0:
+            a = np.column_stack((a, b))
+        else:
+            a = np.row_stack((a, b))
+
+    n_vars = a.shape[1 - axisout]
+    n_obs = a.shape[axisout]
+    if n_obs <= 1:
+        # Handle empty arrays or single observations.
+        return (np.nan, np.nan)
+
+    a_contains_nan, nan_policy = _contains_nan(a, nan_policy)
+    variable_has_nan = np.zeros(n_vars, dtype=bool)
+    if a_contains_nan:
+        if nan_policy == 'omit':
+            return mstats_basic.spearmanr(a, axis=axis, nan_policy=nan_policy)
+        elif nan_policy == 'propagate':
+            if a.ndim == 1 or n_vars <= 2:
+                return (np.nan, np.nan)
+            else:
+                # Keep track of variables with NaNs, set the outputs to NaN
+                # only for those variables
+                # update J.C.
+                # variable_has_nan = np.isnan(a).sum(axis=axisout)
+                variable_has_nan = np.isnan(a).sum(axis=axisout).astype(np.bool)
+
+    a_ranked = np.apply_along_axis(rankdata, axisout, a)
+    rs = np.corrcoef(a_ranked, rowvar=axisout)
+    dof = n_obs - 2  # degrees of freedom
+
+    # rs can have elements equal to 1, so avoid zero division warnings
+    olderr = np.seterr(divide='ignore')
+    try:
+        # clip the small negative values possibly caused by rounding
+        # errors before taking the square root
+        t = rs * np.sqrt((dof/((rs+1.0)*(1.0-rs))).clip(0))
+    finally:
+        np.seterr(**olderr)
+
+    prob = 2 * distributions.t.sf(np.abs(t), dof)
+#     pdb.set_trace()
+    # For backwards compatibility, return scalars when comparing 2 columns
+    if rs.shape == (2, 2):
+        return (rs[1, 0], prob[1, 0])
+    else:
+        rs[variable_has_nan, :] = np.nan
+        rs[:, variable_has_nan] = np.nan
+        return (rs, prob)
