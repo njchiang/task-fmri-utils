@@ -187,7 +187,7 @@ def _group_iter_search_light(list_rows, estimator, X, y, groups,
 
         if permutations > 0:
             actual, perms, _ = permutation_test_score(estimator, X[:, row], 
-                                                      y, cv=cv, n_jobs=1, 
+                                                      y, cv=cv, n_jobs=1, n_permutations=permutations,
                                                       random_state=random_state,
                                                       **kwargs)
             par_scores[i] = np.hstack([actual, perms])
