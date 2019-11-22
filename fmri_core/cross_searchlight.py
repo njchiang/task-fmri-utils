@@ -22,7 +22,7 @@ import sklearn
 from sklearn.externals.joblib import Parallel, delayed, cpu_count
 from sklearn import svm
 from sklearn.base import BaseEstimator
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, permutation_test_score
 
 from nilearn import masking
 from nilearn.image.resampling import coord_transform
@@ -34,7 +34,7 @@ ESTIMATOR_CATALOG = dict(svc=svm.LinearSVC, svr=svm.SVR)
 
 
 def search_light(X, y, estimator, A, groups=None, scoring=None,
-                 cv=None, n_jobs=-1, verbose=0):
+                 cv=None, n_jobs=-1, verbose=0, permutations=0, random_state=42):
     """Function for computing a search_light
 
     Parameters
@@ -87,7 +87,7 @@ def search_light(X, y, estimator, A, groups=None, scoring=None,
         delayed(_group_iter_search_light)(
             A.rows[list_i],
             estimator, X, y, groups, scoring, cv,
-            thread_id + 1, A.shape[0], verbose)
+            thread_id + 1, A.shape[0], verbose, permutations, random_state)
         for thread_id, list_i in enumerate(group_iter))
     return np.concatenate(scores)
 
@@ -120,7 +120,8 @@ class GroupIterator(object):
 
 
 def _group_iter_search_light(list_rows, estimator, X, y, groups,
-                             scoring, cv, thread_id, total, verbose=0):
+                             scoring, cv, thread_id, total, verbose=0, 
+                             permutations=0, random_state=42):
     """Function for grouped iterations of search_light
 
     Parameters
@@ -181,14 +182,21 @@ def _group_iter_search_light(list_rows, estimator, X, y, groups,
             warnings.warn('Scikit-learn version is too old. '
                           'scoring argument ignored', stacklevel=2)
 
-        if groups is not None:
-            par_scores[i] = cross_val_score(estimator, X[:, row],
-                                         y, cv=cv, n_jobs=1,
-                                         **kwargs)
+        if permutations > 0:
+            actual, perms, _ = permutation_test_score(estimator, X[:, row], 
+                                                      y, cv=cv, n_jobs=1, 
+                                                      random_state=random_state,
+                                                      **kwargs)
+            par_scores[i] = np.hstack([actual, perms])
         else:
-            par_scores[i] = np.mean(cross_val_score(estimator, X[:, row],
-                                                y, cv=cv, n_jobs=1,
-                                                **kwargs))
+            if groups is not None:
+                par_scores[i] = cross_val_score(estimator, X[:, row],
+                                            y, cv=cv, n_jobs=1,
+                                            **kwargs)
+            else:
+                par_scores[i] = np.mean(cross_val_score(estimator, X[:, row],
+                                                    y, cv=cv, n_jobs=1,
+                                                    **kwargs))
         if verbose > 0:
             # One can't print less than each 10 iterations
             step = 11 - min(verbose, 10)
@@ -283,7 +291,7 @@ class SearchLight(BaseEstimator):
         self.cv = cv
         self.verbose = verbose
 
-    def fit(self, imgs, y, groups=None):
+    def fit(self, imgs, y, groups=None, permutations=0, random_state=42):
         """Fit the searchlight
 
         Parameters
@@ -327,7 +335,7 @@ class SearchLight(BaseEstimator):
 
         scores = search_light(X, y, estimator, A, groups,
                               self.scoring, self.cv, self.n_jobs,
-                              self.verbose)
+                              self.verbose, permutations=permutations, random_state=random_state)
         if groups is not None:
             scores_3D = []
             for g in range(scores.shape[1]):

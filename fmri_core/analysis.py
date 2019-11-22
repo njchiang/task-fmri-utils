@@ -150,7 +150,7 @@ def roi(x, y, clf, m=None, cv=None, logger=None, **roiargs):
 
 
 def searchlight(x, y, m=None, groups=None, cv=None,
-                write=False, logger=None, **searchlight_args):
+                write=False, logger=None, permutations=0, random_state=42, **searchlight_args):
     """
     Wrapper to launch searchlight
     :param x: Data
@@ -172,7 +172,7 @@ def searchlight(x, y, m=None, groups=None, cv=None,
     write_to_logger("searchlight params: " + str(searchlight_args), logger=logger)
 
     sl = SearchLight(mask_img=m, cv=cv, **searchlight_args)
-    sl.fit(x, y, groups)
+    sl.fit(x, y, groups, permutations=permutations, random_state=random_state)
     write_to_logger("Searchlight ended at " + str(datetime.now()), logger=logger)
     if write:
         return sl, data_to_img(sl.scores_, x, logger=logger)
