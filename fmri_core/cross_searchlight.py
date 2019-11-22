@@ -167,10 +167,13 @@ def _group_iter_search_light(list_rows, estimator, X, y, groups,
     par_scores : numpy.ndarray
         score for each voxel. dtype: float64.
     """
-    if groups is not None:
-        par_scores = np.zeros((len(list_rows), len(set(groups))))
+    if permutations > 0:
+        par_scores = np.zeros((len(list_rows), permutations + 1))
     else:
-        par_scores = np.zeros(len(list_rows))
+        if groups is not None:
+            par_scores = np.zeros((len(list_rows), len(set(groups))))
+        else:
+            par_scores = np.zeros(len(list_rows))
     t0 = time.time()
     for i, row in enumerate(list_rows):
         kwargs = dict()
